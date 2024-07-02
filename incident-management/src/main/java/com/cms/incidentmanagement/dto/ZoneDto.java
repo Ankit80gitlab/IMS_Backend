@@ -17,9 +17,14 @@ import java.util.List;
 @Getter
 @Setter
 public class ZoneDto {
+
     private Integer id;
+
     private String name;
+
     private String polygon;
+
     private Integer customerId;
+
     private HashMap<String,Object> customer;
 }

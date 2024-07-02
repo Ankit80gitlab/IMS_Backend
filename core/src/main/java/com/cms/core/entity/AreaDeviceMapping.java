@@ -22,7 +22,7 @@ public class AreaDeviceMapping implements Serializable {
     @JoinColumn(name = "area_id")
     private Area area;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id")
     private Device device;
 }

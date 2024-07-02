@@ -1,7 +1,6 @@
 package com.cms.incidentmanagement.controller;
 
 import com.cms.incidentmanagement.configuration.ExceptionConfig;
-import com.cms.incidentmanagement.dto.ProductDto;
 import com.cms.incidentmanagement.dto.ZoneDto;
 import com.cms.incidentmanagement.service.implementation.ZoneServiceImpl;
 import com.cms.incidentmanagement.utility.Constant;
@@ -26,32 +25,37 @@ public class ZoneController {
     private ZoneServiceImpl zoneServiceImpl;
     @Autowired
     private ExceptionConfig exceptionConfig;
+
     @PostMapping("/addZone")
     public HashMap<String, Object> addZone(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
             @RequestBody ZoneDto zoneDto) {
         HashMap<String, Object> map;
         try {
-          map = zoneServiceImpl.addZone(zoneDto, token);
+            map = zoneServiceImpl.addZone(zoneDto, token);
         } catch (Exception e) {
             logger.error("error: " + e.getMessage());
-         map =  exceptionConfig.getTryCatchErrorMap(e);
+            map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
+
     @GetMapping("/getAllZones")
     public HashMap<String, Object> getAllZones(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "searchByName", required = false) String searchByName,
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
             @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
         HashMap<String, Object> map;
         try {
-            map = zoneServiceImpl.getAllZones(pageNo, pageSize);
+            map = zoneServiceImpl.getAllZones(pageNo, pageSize, token, searchByName);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
+
     @PutMapping("/updateZone")
     public HashMap<String, Object> updateZone(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
@@ -93,6 +97,7 @@ public class ZoneController {
         }
         return map;
     }
+
     @GetMapping("/getZoneAreaInformations")
     public HashMap<String, Object> getZoneAreaInformations(
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
@@ -125,4 +130,5 @@ public class ZoneController {
         return map;
 
 
-    }}
+    }
+}

@@ -28,10 +28,12 @@ public class RoleManagementController {
     @RequestMapping(method = RequestMethod.GET, value = "/getAllRoles")
     public HashMap<String, Object> getAllRoles(
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
-            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "searchByName", required = false) String searchByName) {
         HashMap<String, Object> roleMap = new HashMap<>();
         try {
-            roleMap = roleManagementServiceImpl.getAllRoles(pageNo, pageSize);
+            roleMap = roleManagementServiceImpl.getAllRoles(pageNo, pageSize, token, searchByName);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             roleMap = exceptionConfig.getTryCatchErrorMap(e);
@@ -45,7 +47,7 @@ public class RoleManagementController {
             @RequestBody RoleDto roleDto) {
         HashMap<String, Object> createNewRoleMap;
         try {
-            createNewRoleMap = roleManagementServiceImpl.createNewRole(roleDto);
+            createNewRoleMap = roleManagementServiceImpl.createNewRole(roleDto, token);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             createNewRoleMap = exceptionConfig.getTryCatchErrorMap(e);
@@ -68,12 +70,12 @@ public class RoleManagementController {
     }
 
     @RequestMapping(method = RequestMethod.POST, value = "/updateRole")
-    public HashMap<String, Object> updateUser(
+    public HashMap<String, Object> updateRole(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
             @RequestBody RoleDto roleDto) {
         HashMap<String, Object> updatedUserMap;
         try {
-            updatedUserMap = roleManagementServiceImpl.updateRole(roleDto);
+            updatedUserMap = roleManagementServiceImpl.updateRole(roleDto, token);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             updatedUserMap = exceptionConfig.getTryCatchErrorMap(e);
@@ -95,27 +97,12 @@ public class RoleManagementController {
         return getAllFeatureMap;
     }
 
-    @GetMapping("/getRoles")
-    public HashMap<String, Object> getRoles() {
-        HashMap<String, Object> map;
-        try {
-            map = roleManagementServiceImpl.getRoles();
-        } catch (Exception e) {
-            logger.error("error :" + e.getMessage());
-            map = exceptionConfig.getTryCatchErrorMap(e);
-        }
-        return map;
-    }
     @GetMapping("/getAllRolesBasicDetails")
     public HashMap<String, Object> getAllRolesBasicDetails(
-            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
-            @RequestParam(name = "searchByName", required = false) String searchByName,
-            @RequestParam(name = "pageNo", required = false) Integer pageNo,
-            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize
-    ) {
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token) {
         HashMap<String, Object> map;
         try {
-            map = roleManagementServiceImpl.getAllRolesBasicDetails(token, searchByName, pageNo, pageSize);
+            map = roleManagementServiceImpl.getAllRolesBasicDetails(token);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);

@@ -4,7 +4,6 @@ import com.cms.incidentmanagement.configuration.ExceptionConfig;
 import com.cms.incidentmanagement.dto.CustomerDto;
 import com.cms.incidentmanagement.dto.ProductDto;
 import com.cms.incidentmanagement.service.implementation.CustomerServiceImpl;
-import com.cms.incidentmanagement.service.implementation.ProductServiceImpl;
 import com.cms.incidentmanagement.utility.Constant;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.slf4j.Logger;
@@ -14,19 +13,21 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
-import java.util.List;
+
 
 /**
  * Created by Shashidhar on 4/15/2024.
- */@SecurityRequirement(name = Constant.BEARER_AUTH)
-   @RestController
-   @RequestMapping("/customerManagement")
-   public class CustomerController {
+ */
+@SecurityRequirement(name = Constant.BEARER_AUTH)
+@RestController
+@RequestMapping("/customerManagement")
+public class CustomerController {
     private static final Logger logger = LoggerFactory.getLogger(CustomerController.class);
     @Autowired
-    private  CustomerServiceImpl customerServiceImpl;
+    private CustomerServiceImpl customerServiceImpl;
     @Autowired
-    private  ExceptionConfig exceptionConfig;
+    private ExceptionConfig exceptionConfig;
+
     @PostMapping("/addCustomer")
     public HashMap<String, Object> addCustomer(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
@@ -34,7 +35,7 @@ import java.util.List;
         HashMap<String, Object> addCustomerMap;
         try {
 
-            addCustomerMap = customerServiceImpl.addCustomer(customerDto,token);
+            addCustomerMap = customerServiceImpl.addCustomer(customerDto, token);
         } catch (Exception e) {
             logger.error("error: " + e.getMessage());
             addCustomerMap = exceptionConfig.getTryCatchErrorMap(e);
@@ -45,11 +46,14 @@ import java.util.List;
 
     @GetMapping("/getAllCustomers")
     public HashMap<String, Object> getAllCustomers(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String token,
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
-            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+            @RequestParam(name = "searchByName", required = false) String searchByName
+    ) {
         HashMap<String, Object> map;
         try {
-            map = customerServiceImpl.getAllCustomers(pageNo, pageSize);
+            map = customerServiceImpl.getAllCustomers(pageNo, pageSize, token, searchByName);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);
@@ -65,7 +69,8 @@ import java.util.List;
         try {
             map = customerServiceImpl.updateCustomer(customerDto, token);
         } catch (Exception e) {
-            logger.error("error : " + e.getMessage());map = exceptionConfig.getTryCatchErrorMap(e);
+            logger.error("error : " + e.getMessage());
+            map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
@@ -90,10 +95,10 @@ import java.util.List;
             @RequestParam(name = "searchByName", required = false) String searchByName,
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
             @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize
-         ) {
+    ) {
         HashMap<String, Object> map;
         try {
-            map = customerServiceImpl.getAllCustomersBasicDetails(token,searchByName, pageNo, pageSize);
+            map = customerServiceImpl.getAllCustomersBasicDetails(token, searchByName, pageNo, pageSize);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);
@@ -109,7 +114,54 @@ import java.util.List;
             @RequestParam(name = "customerId", required = false) Integer customerId) {
         HashMap<String, Object> map;
         try {
-            map = customerServiceImpl.getAllProductsOfCustomer(token, pageNo, pageSize,customerId);
+            map = customerServiceImpl.getAllProductsOfCustomer(token, pageNo, pageSize, customerId);
+        } catch (Exception e) {
+            logger.error("error :" + e.getMessage());
+            map = exceptionConfig.getTryCatchErrorMap(e);
+        }
+        return map;
+    }
+
+    @GetMapping("/getCustomersProductDetails")
+    public HashMap<String, Object> getCustomersProductDetails(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "pageNo", required = false) Integer pageNo,
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+            @RequestParam(name = "customerId", required = false) Integer customerId,
+            @RequestParam(name = "productId", required = false) Integer productId) {
+        HashMap<String, Object> map;
+        try {
+            map = customerServiceImpl.getCustomersProductDetails(token, pageNo, pageSize, customerId, productId);
+        } catch (Exception e) {
+            logger.error("error :" + e.getMessage());
+            map = exceptionConfig.getTryCatchErrorMap(e);
+        }
+        return map;
+    }
+
+    @PutMapping("/updateCustomerProductDetails")
+    public HashMap<String, Object> updateCustomerProductDetails(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "customerId", required = false) Integer customerId,
+            @RequestBody ProductDto productDto) {
+        HashMap<String, Object> map;
+        try {
+            map = customerServiceImpl.updateCustomerProductDetails(productDto, token, customerId);
+        } catch (Exception e) {
+            logger.error("error : " + e.getMessage());
+            map = exceptionConfig.getTryCatchErrorMap(e);
+        }
+        return map;
+    }
+
+    @DeleteMapping("/removeCustomersProduct")
+    public HashMap<String, Object> removeCustomersProduct(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "customerId", required = false) Integer customerId,
+            @RequestParam(name = "productId", required = false) Integer productId) {
+        HashMap<String, Object> map;
+        try {
+            map = customerServiceImpl.removeCustomersProduct(token, customerId, productId);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);

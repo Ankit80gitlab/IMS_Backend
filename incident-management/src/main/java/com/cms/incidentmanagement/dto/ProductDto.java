@@ -1,5 +1,8 @@
 package com.cms.incidentmanagement.dto;
 
+import com.cms.core.entity.IncidentEscalationUser;
+import com.cms.core.entity.IncidentType;
+import com.cms.core.entity.User;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,6 +14,7 @@ import java.util.List;
 @Getter
 @Setter
 public class ProductDto {
+
     private Integer id;
 
     private String productName;
@@ -18,6 +22,10 @@ public class ProductDto {
     private String productDescription;
 
     private String productType;
+
+    private List<IncidentTypeDto> incidentTypeDtos;
+
+    private List<Integer> userIds;
 
 }
 

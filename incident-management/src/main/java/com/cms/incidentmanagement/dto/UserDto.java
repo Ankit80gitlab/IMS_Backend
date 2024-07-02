@@ -12,7 +12,7 @@ public class UserDto {
 
     private Integer id;
 
-    private String username;
+    private String userName;
 
     private String name;
 
@@ -24,5 +24,15 @@ public class UserDto {
 
     private Integer customerId;
 
+    private String customerName;
+
+    private Boolean isEditable;
+
     private List<Integer> productIds;
+
+    private Integer userTypeId;
+
+    private double lat;
+
+    private double lon;
 }

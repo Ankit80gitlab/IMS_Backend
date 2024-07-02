@@ -9,16 +9,16 @@ import java.util.HashMap;
  */
 public interface DeviceManagementService {
 
-    HashMap<String, Object> addDevice(DeviceDto deviceDto,String token);
+    HashMap<String, Object> addDevice(DeviceDto deviceDto, String token);
 
-    HashMap<String, Object> getAllDevices(Integer pageNo, Integer pageSize);
+    HashMap<String, Object> getAllDevices(Integer pageNo, Integer pageSize, String searchByName, Integer areaId, String token);
 
-    HashMap<String, Object> updateDevice( DeviceDto deviceDto,String token);
+    HashMap<String, Object> updateDevice(DeviceDto deviceDto, String token);
 
     HashMap<String, Object> removeDevice(Integer deviceId);
 
-    HashMap<String, Object> getCustomerProductMappings();
+    HashMap<String, Object> getAllDevicesBasicDetails(String searchByName, Integer pageNo, Integer pageSize, Integer areaId, String token);
 
-    HashMap<String, Object> getAllDevicesBasicDetails(String token,String searchByName, Integer pageNo, Integer pageSize);
+    HashMap<String, Object> getTotalDevices(Integer pageNo, Integer pageSize, String searchByName, Integer productId, String token);
 
 }

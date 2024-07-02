@@ -1,7 +1,7 @@
 package com.cms.incidentmanagement.controller;
 
 import com.cms.incidentmanagement.configuration.ExceptionConfig;
-import com.cms.incidentmanagement.dto.CustomerDto;
+import com.cms.incidentmanagement.dto.SearchCriteriaTicketDto;
 import com.cms.incidentmanagement.dto.TicketDto;
 import com.cms.incidentmanagement.service.implementation.TicketServiceImpl;
 import com.cms.incidentmanagement.utility.Constant;
@@ -30,42 +30,48 @@ public class TicketController {
     @PostMapping("/addTicket")
     public HashMap<String, Object> addTicket(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
-            @RequestBody TicketDto ticketDto) {
+            @ModelAttribute TicketDto ticketDto) {
         HashMap<String, Object> map;
         try {
 
-            map = ticketServiceImpl.addTicket(ticketDto,token);
+            map = ticketServiceImpl.addTicket(ticketDto, token);
         } catch (Exception e) {
             logger.error("error: " + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
+
     @GetMapping("/getAllTickets")
     public HashMap<String, Object> getAllTickets(
-            @RequestParam(name = "pageNo", required = false) Integer pageNo,
-            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @ModelAttribute SearchCriteriaTicketDto searchCriteriaTicketDto
+
+    ) {
         HashMap<String, Object> map;
         try {
-            map = ticketServiceImpl.getAllTickets(pageNo, pageSize);
+            map = ticketServiceImpl.getAllTickets(searchCriteriaTicketDto, token);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
+
     @PutMapping("/updateTicket")
     public HashMap<String, Object> updateTicket(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
-            @RequestBody TicketDto ticketDto) {
+            @ModelAttribute TicketDto ticketDto) {
         HashMap<String, Object> map;
         try {
             map = ticketServiceImpl.updateTicket(ticketDto, token);
         } catch (Exception e) {
-            logger.error("error : " + e.getMessage());map = exceptionConfig.getTryCatchErrorMap(e);
+            logger.error("error : " + e.getMessage());
+            map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
+
     @DeleteMapping("/deleteTicket")
     public HashMap<String, Object> removeTicket(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
@@ -80,5 +86,18 @@ public class TicketController {
         return map;
     }
 
-
+    @GetMapping("/findTicketById")
+    public HashMap<String, Object> findTicketById(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "ticketId") Integer ticketId
+    ) {
+        HashMap<String, Object> map;
+        try {
+            map = ticketServiceImpl.findTicketById(token, ticketId);
+        } catch (Exception e) {
+            logger.error("error :" + e.getMessage());
+            map = exceptionConfig.getTryCatchErrorMap(e);
+        }
+        return map;
+    }
 }

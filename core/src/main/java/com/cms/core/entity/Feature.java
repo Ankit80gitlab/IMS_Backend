@@ -10,16 +10,16 @@ import java.util.Set;
 @Entity
 @Getter
 @Setter
-@Table(name="feature")
+@Table(name = "feature")
 public class Feature implements Serializable {
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Integer id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
 
-	private String name;
+    private String name;
 
-	private String path;
+    private String path;
 
-	@OneToMany(mappedBy = "feature", fetch = FetchType.LAZY)
-	private Set<RoleFeatureMapping> roleFeatureMappings;
+    @OneToMany(mappedBy = "feature", fetch = FetchType.LAZY)
+    private Set<RoleFeatureMapping> roleFeatureMappings;
 }

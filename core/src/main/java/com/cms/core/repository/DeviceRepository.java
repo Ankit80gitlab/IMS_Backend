@@ -10,7 +10,5 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
  */
 public interface DeviceRepository extends JpaRepository<Device,Integer>, JpaSpecificationExecutor<Device> {
 
-	Device findByName(String name);
-
-	long countByNameIgnoreCase(String name);
+	long countByUidIgnoreCase(String uid);
 }

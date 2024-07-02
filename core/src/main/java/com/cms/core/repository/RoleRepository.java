@@ -8,10 +8,9 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.query.Param;
 
 public interface RoleRepository extends JpaRepository<Role, Integer>,JpaSpecificationExecutor<Role> {
-
 	Role findOneByName(String name);
 
-	Page<Role> findByNameContainingIgnoreCase(@Param("roleName")String roleName, Pageable unpaged);
+	long countByNameIgnoreCaseAndCustomerId(String roleName, Integer id);
 
-	long countByNameIgnoreCase(String name);
+	long countByNameIgnoreCaseAndCustomerIdIsNull(String roleName);
 }

@@ -1,5 +1,6 @@
 package com.cms.incidentmanagement.service;
 
+import com.cms.core.entity.Customer;
 import com.cms.core.entity.UserRoleMapping;
 import com.cms.incidentmanagement.configuration.CustomAuthenticationProvider;
 import com.cms.incidentmanagement.utility.Constant;
@@ -40,6 +41,7 @@ public class LoginService {
             Authentication authenticate = customAuthenticationProvider.authenticate(new UsernamePasswordAuthenticationToken(username, password));
             if (authenticate != null) {
                 User user = (User) authenticate.getPrincipal();
+
                 UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
                         user, null, user.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
@@ -65,13 +67,39 @@ public class LoginService {
         com.cms.core.entity.User user = utilities.getLoggedInUser(token);
         Set<UserRoleMapping> roleMappings = user.getUserRoleMappings();
         userInfo.put("id", user.getId());
-        userInfo.put("name", user.getUsername());
+        userInfo.put("name", user.getName());
+        userInfo.put("username", user.getUsername());
         userInfo.put("email", user.getEmail());
         userInfo.put("roles", roleMappings.stream().map(userRoleMapping -> userRoleMapping.getRole().getName()).collect(Collectors.toList()));
         userInfo.put("permissions",
                 roleMappings.stream().flatMap(userRoleMapping -> userRoleMapping.getRole().getRoleFeatureMappings().stream()
                         .map(roleFeatureMapping -> roleFeatureMapping.getFeature().getName())).collect(Collectors.toList()));
+        Customer customer = user.getCustomer();
+        if(customer != null) {
+            userInfo.put("customerId",customer.getId());
+            userInfo.put("customerName",customer.getName());
+        }
+        return userInfo;
+    }
 
+    public HashMap<String,Object> getUserInfo(String token){
+        HashMap<String, Object> userInfo = new HashMap<>();
+        com.cms.core.entity.User user = utilities.getLoggedInUser(token);
+        userInfo.put("id", user.getId());
+        userInfo.put("name", user.getName());
+        userInfo.put("username", user.getUsername());
+        userInfo.put("email", user.getEmail());
+        if(user.getCustomer()!=null){
+            userInfo.put("customerName",user.getCustomer().getName());
+        }else{
+            userInfo.put("customerName","----------");
+        }
+        Set<UserRoleMapping> roleMappings = user.getUserRoleMappings();
+        userInfo.put("roles", roleMappings.stream().map(userRoleMapping -> userRoleMapping.getRole().getName()).collect(Collectors.toList()));
+
+        userInfo.put("permissions",
+                roleMappings.stream().flatMap(userRoleMapping -> userRoleMapping.getRole().getRoleFeatureMappings().stream()
+                        .map(roleFeatureMapping -> roleFeatureMapping.getFeature().getName())).collect(Collectors.toList()));
         return userInfo;
     }
 }

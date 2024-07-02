@@ -1,10 +1,7 @@
 package com.cms.incidentmanagement.controller;
 
 import com.cms.incidentmanagement.configuration.ExceptionConfig;
-import com.cms.incidentmanagement.dto.CustomerDto;
 import com.cms.incidentmanagement.dto.DeviceDto;
-import com.cms.incidentmanagement.service.DeviceManagementService;
-import com.cms.incidentmanagement.service.implementation.CustomerServiceImpl;
 import com.cms.incidentmanagement.service.implementation.DeviceManagementServiceImpl;
 import com.cms.incidentmanagement.utility.Constant;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,6 +25,7 @@ public class DeviceManagementController {
     private DeviceManagementServiceImpl deviceManagementServiceImpl;
     @Autowired
     private ExceptionConfig exceptionConfig;
+
     @PostMapping("/addDevice")
     public HashMap<String, Object> addDevice(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
@@ -35,22 +33,24 @@ public class DeviceManagementController {
         HashMap<String, Object> map;
         try {
 
-      map = deviceManagementServiceImpl.addDevice(devicedto,token);
+            map = deviceManagementServiceImpl.addDevice(devicedto, token);
         } catch (Exception e) {
             logger.error("error: " + e.getMessage());
-           map = exceptionConfig.getTryCatchErrorMap(e);
+            map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
 
-
     @GetMapping("/getAllDevices")
     public HashMap<String, Object> getAllDevices(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "searchByName", required = false) String searchByName,
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
-            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+            @RequestParam(name = "areaId", required = false) Integer areaId) {
         HashMap<String, Object> map;
         try {
-            map = deviceManagementServiceImpl.getAllDevices(pageNo, pageSize);
+            map = deviceManagementServiceImpl.getAllDevices(pageNo, pageSize, searchByName, areaId, token);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);
@@ -66,7 +66,8 @@ public class DeviceManagementController {
         try {
             map = deviceManagementServiceImpl.updateDevice(deviceDto, token);
         } catch (Exception e) {
-            logger.error("error : " + e.getMessage());map = exceptionConfig.getTryCatchErrorMap(e);
+            logger.error("error : " + e.getMessage());
+            map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
@@ -85,37 +86,40 @@ public class DeviceManagementController {
         return map;
     }
 
-    @GetMapping("/getCustomerProductMappings")
-    public HashMap<String, Object> getCustomerProductMappings() {
+    @GetMapping("/getAllDevicesBasicDetails")
+    public HashMap<String, Object> getAllDevicesBasicDetails(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "searchByName", required = false) String searchByName,
+            @RequestParam(name = "pageNo", required = false) Integer pageNo,
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+            @RequestParam(name = "areaId", required = true) Integer areaId) {
         HashMap<String, Object> map;
         try {
-            map = deviceManagementServiceImpl.getCustomerProductMappings();
+            map = deviceManagementServiceImpl.getAllDevicesBasicDetails(searchByName, pageNo, pageSize, areaId, token);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
-
-
     }
-    @GetMapping("/getAllDevicesBasicDetails")
-    public HashMap<String, Object> getAllDevicesBasicDetails(
+
+    @GetMapping("/getTotalDevices")
+    public HashMap<String, Object> getTotalDevices(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "productId", required = true) Integer productId,
             @RequestParam(name = "searchByName", required = false) String searchByName,
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
             @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize
     ) {
         HashMap<String, Object> map;
         try {
-            map = deviceManagementServiceImpl.getAllDevicesBasicDetails(token, searchByName, pageNo, pageSize);
+            map = deviceManagementServiceImpl.getTotalDevices(pageNo, pageSize, searchByName, productId, token);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
-
-
 
 
 }

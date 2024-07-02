@@ -4,7 +4,8 @@ package com.cms.core.entity;
  * Created by Shashidhar on 4/18/2024.
  */
 
-import lombok.Getter; import lombok.Setter;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -12,7 +13,8 @@ import java.sql.Timestamp;
 import java.util.Set;
 
 @Entity
-@Getter @Setter
+@Getter
+@Setter
 @Table(name = "comments")
 public class Comment implements Serializable {
     @Id
@@ -25,15 +27,16 @@ public class Comment implements Serializable {
     @Column(name = "created_time", nullable = false)
     private Timestamp createdTime;
 
-    @Column(name = "created_by", nullable = false)
-    private int createdBy;
+    @ManyToOne
+    @JoinColumn(name = "created_by")
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticket_id", nullable = false)
     private Ticket ticket;
 
-    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL)
-    private Set<CommentsFile> files;
+    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TicketFile> ticketFiles;
 
 }
 

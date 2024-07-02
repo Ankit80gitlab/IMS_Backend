@@ -3,206 +3,225 @@ package com.cms.incidentmanagement.service.implementation;
 import com.cms.core.entity.*;
 import com.cms.core.repository.*;
 import com.cms.incidentmanagement.dto.DeviceDto;
-import com.cms.incidentmanagement.dto.ProductDto;
 import com.cms.incidentmanagement.service.DeviceManagementService;
 import com.cms.incidentmanagement.utility.Constant;
 import com.cms.incidentmanagement.utility.Utilities;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import javax.persistence.criteria.Join;
+import javax.persistence.criteria.JoinType;
 import javax.persistence.criteria.Predicate;
 import javax.transaction.Transactional;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Created by Shashidhar on 5/13/2024.
  */
 @Service
 public class DeviceManagementServiceImpl implements DeviceManagementService {
-
     @Autowired
     private DeviceRepository deviceRepository;
-
     @Autowired
     private Utilities utility;
-
     @Autowired
     private CustomerProductMappingRepository customerProductMappingRepository;
-
     @Autowired
     private AreaRepository areaRepository;
     @Autowired
+    private ProductRepository productRepository;
+    @Autowired
     private CustomerProductMappingDeviceRepository customerProductMappingDeviceRepository;
+    @Autowired
+    private AreaDeviceMappingRepository areaDeviceMappingRepository;
 
-
+    @Transactional
     @Override
     public HashMap<String, Object> addDevice(DeviceDto deviceDto, String token) {
         HashMap<String, Object> map = new HashMap<>();
-        long existingZoneCount = deviceRepository.countByNameIgnoreCase(deviceDto.getName());
+        long existingZoneCount = deviceRepository.countByUidIgnoreCase(deviceDto.getUid());
         if (existingZoneCount > 0) {
             map.put(Constant.STATUS, Constant.ERROR);
             map.put(Constant.MESSAGE, Constant.DEVICE_ALREADY_EXISTS);
             return map;
         }
-           Device device = new Device();
-            device.setName(deviceDto.getName());
-            device.setLat(deviceDto.getLat());
-            device.setLon(deviceDto.getLon());
-            device.setDescription(deviceDto.getDescription());
-            User loggedInUser = utility.getLoggedInUser(token);
-            device.setUser(loggedInUser);
-            Optional<CustomerProductMapping> optionalCustomerProductMapping=customerProductMappingRepository.findById(deviceDto.getCustomerProductMappingId());
-            if(optionalCustomerProductMapping.isPresent()){
-                CustomerProductMapping customerProductMapping=optionalCustomerProductMapping.get();
-                Set<CustomerProductMappingDevice> customerProductMappingDevices = new HashSet<>();
-                CustomerProductMappingDevice customerProductMappingDevice=new CustomerProductMappingDevice();
+        Device device = new Device();
+        device.setName(deviceDto.getName().trim());
+        device.setUid(deviceDto.getUid());
+        device.setLat(deviceDto.getLat());
+        device.setLon(deviceDto.getLon());
+        device.setDescription(deviceDto.getDescription());
+        User loggedInUser = utility.getLoggedInUser(token);
+        device.setUser(loggedInUser);
+        Optional<Area> optionalArea = areaRepository.findById(deviceDto.getAreaId());
+        Optional<Product> optionalProduct = productRepository.findById(deviceDto.getProductId());
+        if (optionalArea.isPresent()) {
+            Area area = optionalArea.get();
+            Product product = optionalProduct.get();
+            Optional<CustomerProductMapping> customerProductMappingOptional = customerProductMappingRepository.findOne((root, query, criteriaBuilder) -> {
+                List<Predicate> predicates = new ArrayList<>();
+                Join<CustomerProductMapping, Customer> customerProductMappingZoneJoin = root.join("customer");
+                Join<Customer, Zone> zoneJoin = customerProductMappingZoneJoin.join("zones");
+                Join<Zone, Area> areaJoin = zoneJoin.join("areas");
+                predicates.add(criteriaBuilder.equal(areaJoin, area));
+                predicates.add(criteriaBuilder.equal(root.get("product"), product));
+                return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+            });
+            if (customerProductMappingOptional.isPresent()) {
+                CustomerProductMappingDevice customerProductMappingDevice = new CustomerProductMappingDevice();
                 customerProductMappingDevice.setDevice(device);
-                customerProductMappingDevice.setCustomerProductMapping(customerProductMapping);
-                customerProductMappingDevices.add(customerProductMappingDevice);
-                device.setCustomerProductMappingDevices(customerProductMappingDevices);
-            }
-            else {
+                customerProductMappingDevice.setCustomerProductMapping(customerProductMappingOptional.get());
+                device.setCustomerProductMappingDevice(customerProductMappingDevice);
+                AreaDeviceMapping areaDeviceMapping = new AreaDeviceMapping();
+                areaDeviceMapping.setDevice(device);
+                areaDeviceMapping.setArea(area);
+                device.setAreaDeviceMapping(areaDeviceMapping);
+            } else {
                 map.put(Constant.STATUS, Constant.ERROR);
                 map.put(Constant.MESSAGE, Constant.CUSTOMER_PRODUCT_MAPPING_NOT_FOUND);
                 return map;
             }
-           Optional<Area>optionalArea= areaRepository.findById(deviceDto.getAreaId());
-            if(optionalArea.isPresent()){
-                Area area=optionalArea.get();
-                Set<AreaDeviceMapping> areaDeviceMappings = new HashSet<>();
-                AreaDeviceMapping areaDeviceMapping=new AreaDeviceMapping();
-                areaDeviceMapping.setDevice(device);
-                areaDeviceMapping.setArea(area);
-                areaDeviceMappings.add(areaDeviceMapping);
-                device.setAreaDeviceMappings(areaDeviceMappings);
-            }
-            else {
-                map.put(Constant.STATUS, Constant.ERROR);
-                map.put(Constant.MESSAGE, Constant.AREA_NOT_FOUND);
-                return map;
-            }
-            Device savedDevice =deviceRepository.save(device);
-            map.put(Constant.STATUS, Constant.SUCCESS);
-            map.put(Constant.MESSAGE, Constant.REGISTERED_SUCCESS);
-            map.put(Constant.DATA, savedDevice.getId());
+        } else {
+            map.put(Constant.STATUS, Constant.ERROR);
+            map.put(Constant.MESSAGE, Constant.AREA_NOT_FOUND);
+            return map;
+        }
+        Device savedDevice = deviceRepository.save(device);
+        map.put(Constant.STATUS, Constant.SUCCESS);
+        map.put(Constant.MESSAGE, Constant.ADD_SUCCESS);
+        map.put(Constant.DATA, new HashMap<String, Object>() {{
+            put("id", savedDevice.getId());
+        }});
 
         return map;
     }
 
     @Override
-    public HashMap<String, Object> getAllDevices(Integer pageNo, Integer pageSize) {
+    public HashMap<String, Object> getAllDevices(Integer pageNo, Integer pageSize, String searchByName, Integer areaId, String token) {
         HashMap<String, Object> map = new HashMap<>();
-        Page<Device> devices;
-        if (pageNo == null) {
-            devices = deviceRepository.findAll(Pageable.unpaged());
-        } else {
-            devices = deviceRepository.findAll(PageRequest.of(pageNo, pageSize, Sort.by("id").descending()));
+        List<HashMap<String, Object>> deviceList = new ArrayList<>();
+        Area area = null;
+        if (areaId != null) {
+            Optional<Area> areaOptional = areaRepository.findById(areaId);
+            if (areaOptional.isPresent()) {
+                area = areaOptional.get();
+            } else {
+                map.put(Constant.STATUS, Constant.ERROR);
+                map.put(Constant.MESSAGE, Constant.AREA_NOT_FOUND);
+                return map;
+            }
         }
-        List<DeviceDto> deviceDtoList = new ArrayList<>();
-        for (Device device : devices) {
-            DeviceDto dto = new DeviceDto();
-            dto.setId(device.getId());
-            dto.setName(device.getName());
-            dto.setDescription(device.getDescription());
-            dto.setLon(device.getLon());
-            dto.setLat(device.getLat());
-            dto.setCustomerProductMappingId(device.getCustomerProductMappingDevices().stream().findFirst().get().getCustomerProductMapping().getId());
-            dto.setAreaId(device.getAreaDeviceMappings().stream().findFirst().get().getArea().getId());
-            deviceDtoList.add(dto);
-        }
+        PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(new String[]{"name"}).ascending());
+        Area finalArea = area;
+        User user = utility.getLoggedInUser(token);
+        Customer usersCustomer = user.getCustomer();
+        Page<Device> devicePage = deviceRepository.findAll((root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (finalArea != null) {
+                Join<Device, AreaDeviceMapping> areaDeviceMappingJoin = root.join("areaDeviceMapping", JoinType.LEFT);
+                predicates.add(criteriaBuilder.equal(areaDeviceMappingJoin.get("area"), finalArea));
+            }
+            if (usersCustomer != null) {
+                Join<Device, CustomerProductMappingDevice> deviceCustomerProductMappingDeviceJoin = root.join("customerProductMappingDevice", JoinType.INNER);
+                Join<CustomerProductMappingDevice, CustomerProductMapping> customerProductMappingDeviceCustomerProductMappingJoin = deviceCustomerProductMappingDeviceJoin.join("customerProductMapping", JoinType.INNER);
+                predicates.add(criteriaBuilder.equal(customerProductMappingDeviceCustomerProductMappingJoin.get("customer"), usersCustomer));
+            }
+            if (searchByName != null && !searchByName.isEmpty()) {
+                String searchTerm = "%" + searchByName.toLowerCase() + "%";
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), searchTerm));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        }, pageRequest);
+        devicePage.stream().forEach(device -> {
+            CustomerProductMapping customerProductMapping = device.getCustomerProductMappingDevice().getCustomerProductMapping();
+            Product product = customerProductMapping.getProduct();
+            AreaDeviceMapping areaDeviceMapping = device.getAreaDeviceMapping();
+            Integer areaId1 = null;
+            Integer zoneId = null;
+            if (areaDeviceMapping != null) {
+                Area area1 = areaDeviceMapping.getArea();
+                areaId1 = area1.getId();
+                zoneId = area1.getZone().getId();
+            }
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("id", device.getId());
+            data.put("name", device.getName());
+            data.put("uid", device.getUid());
+            data.put("lat", device.getLat());
+            data.put("lon", device.getLon());
+            data.put("description", device.getDescription());
+            data.put("areaId", areaId1);
+            data.put("zoneId", zoneId);
+            data.put("customerId", customerProductMapping.getCustomer().getId());
+            data.put("product", new HashMap<String, Object>() {{
+                put("id", product.getId());
+                put("name", product.getName());
+            }});
+            deviceList.add(data);
+        });
         map.put(Constant.STATUS, Constant.SUCCESS);
-        map.put(Constant.DATA, deviceDtoList);
+        map.put(Constant.DATA, deviceList);
         return map;
     }
-    @Transactional
+
     @Override
     public HashMap<String, Object> updateDevice(DeviceDto deviceDto, String token) {
         HashMap<String, Object> map = new HashMap<>();
         Optional<Device> deviceOptional = deviceRepository.findById(deviceDto.getId());
         if (deviceOptional.isPresent()) {
             Device updatedDevice = deviceOptional.get();
-            updatedDevice.setName(deviceDto.getName());
+            if (updatedDevice.getName().equalsIgnoreCase(deviceDto.getName())) {
+                updatedDevice.setName(deviceDto.getName());
+            } else {
+                long existingZoneCount = deviceRepository.countByUidIgnoreCase(deviceDto.getUid());
+                if (existingZoneCount > 0) {
+                    map.put(Constant.STATUS, Constant.ERROR);
+                    map.put(Constant.MESSAGE, Constant.DEVICE_ALREADY_EXISTS);
+                    return map;
+                }
+            }
+            updatedDevice.setUid(deviceDto.getName());
+            updatedDevice.setName(deviceDto.getName().trim());
             updatedDevice.setDescription(deviceDto.getDescription());
             updatedDevice.setLat(deviceDto.getLat());
             updatedDevice.setLon(deviceDto.getLon());
-            User loggedInUser = utility.getLoggedInUser(token);
-            updatedDevice.setUser(loggedInUser);
-//            Optional<CustomerProductMapping> optionalCustomerProductMapping=customerProductMappingRepository.findById(deviceDto.getCustomerProductMappingId());
-//            if(optionalCustomerProductMapping.isPresent()){
-//                CustomerProductMapping customerProductMapping=optionalCustomerProductMapping.get();
-//                Optional<CustomerProductMappingDevice> existingMapping = updatedDevice.getCustomerProductMappingDevices().stream()
-//                        .filter(mapping -> mapping.getCustomerProductMapping().getId().equals(customerProductMapping.getId()))
-//                        .findFirst();
-//
-//                if (existingMapping.isPresent()) {
-//                    updatedDevice.getCustomerProductMappingDevices().clear();
-//                    CustomerProductMappingDevice customerProductMappingDevice = existingMapping.get();
-//                    customerProductMappingDevice.setCustomerProductMapping(customerProductMapping);
-//                } else {
-//                    CustomerProductMappingDevice customerProductMappingDevice = new CustomerProductMappingDevice();
-//                    customerProductMappingDevice.setDevice(updatedDevice);
-//                    customerProductMappingDevice.setCustomerProductMapping(customerProductMapping);
-//                    updatedDevice.getCustomerProductMappingDevices().add(customerProductMappingDevice);
-//                }
-//            }
-//            else {
-//                map.put(Constant.STATUS, Constant.ERROR);
-//                map.put(Constant.MESSAGE, Constant.CUSTOMER_PRODUCT_MAPPING_NOT_FOUND);
-//                return map;
-//            }
-
-            Set<CustomerProductMappingDevice> existingMappings = updatedDevice.getCustomerProductMappingDevices();
-            Set<Integer> existingCustomerProductMappingIds = new HashSet<>();
-            existingMappings.forEach(mapping -> existingCustomerProductMappingIds.add(mapping.getCustomerProductMapping().getId()));
-            Set<Integer> newCustomerProductMappingId = new HashSet<>(deviceDto.getCustomerProductMappingId());
-            Set<Integer> customerProductMappingIdsToRemove = new HashSet<>(existingCustomerProductMappingIds);
-            customerProductMappingIdsToRemove .removeAll(newCustomerProductMappingId);
-            existingMappings.removeIf(mapping -> customerProductMappingIdsToRemove.contains(mapping.getCustomerProductMapping().getId()));
-            Set<CustomerProductMappingDevice> customerProductMappingDevices = new HashSet<>();
-            for (Integer customerProductMappingId: newCustomerProductMappingId) {
-                if (!existingCustomerProductMappingIds.contains( customerProductMappingId)) {
-                    Optional<CustomerProductMapping> OptionalCustomerProductMapping = customerProductMappingRepository.findById(customerProductMappingId);
-                    if (OptionalCustomerProductMapping.isPresent()) {
-                        CustomerProductMapping customerProductMapping  = OptionalCustomerProductMapping.get();
-                        CustomerProductMappingDevice newMapping = new CustomerProductMappingDevice();
-                        newMapping.setCustomerProductMapping(customerProductMapping);
-                        newMapping.setDevice(updatedDevice);
-                       customerProductMappingDevices.add(newMapping);
-                        updatedDevice.setCustomerProductMappingDevices(customerProductMappingDevices);
-                    } else {
-                        map.put(Constant.STATUS, Constant.ERROR);
-                        map.put(Constant.MESSAGE, "CustomerProductMapping not found for ID: " + customerProductMappingId);
-                        return map;
-
+            Optional<Area> optionalArea = areaRepository.findById(deviceDto.getAreaId());
+            Optional<Product> optionalProduct = productRepository.findById(deviceDto.getProductId());
+            if (optionalArea.isPresent()) {
+                Area area = optionalArea.get();
+                Optional<CustomerProductMapping> customerProductMappingOptional = customerProductMappingRepository.findOne((root, query, criteriaBuilder) -> {
+                    List<Predicate> predicates = new ArrayList<>();
+                    Join<CustomerProductMapping, Customer> customerProductMappingZoneJoin = root.join("customer");
+                    Join<Customer, Zone> zoneJoin = customerProductMappingZoneJoin.join("zones");
+                    Join<Zone, Area> areaJoin = zoneJoin.join("areas");
+                    predicates.add(criteriaBuilder.equal(areaJoin, area));
+                    predicates.add(criteriaBuilder.equal(root.get("product"), optionalProduct.get()));
+                    return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+                });
+                if (customerProductMappingOptional.isPresent()) {
+                    Optional<CustomerProductMappingDevice> customerProductMappingDeviceOptional = customerProductMappingDeviceRepository.findByDeviceId(deviceDto.getId());
+                    if (customerProductMappingDeviceOptional.isPresent()) {
+                        CustomerProductMappingDevice existingCustomerProductMappingDevice = customerProductMappingDeviceOptional.get();
+                        existingCustomerProductMappingDevice.setDevice(updatedDevice);
+                        existingCustomerProductMappingDevice.setCustomerProductMapping(customerProductMappingOptional.get());
+                        updatedDevice.setCustomerProductMappingDevice(existingCustomerProductMappingDevice);
                     }
-                }
-            }
-
-            Optional<Area> optionalArea=areaRepository.findById(deviceDto.getAreaId());
-            if(optionalArea.isPresent()){
-                Area area=optionalArea.get();
-                Optional<AreaDeviceMapping> existingMapping = updatedDevice.getAreaDeviceMappings().stream()
-                        .filter(mapping -> mapping.getArea().getId().equals(area.getId()))
-                        .findFirst();
-
-                if (existingMapping.isPresent()) {
-
-                    AreaDeviceMapping areaDeviceMapping = existingMapping.get();
-                    areaDeviceMapping.setArea(area);
+                    Optional<AreaDeviceMapping> areaDeviceMappingOptional = areaDeviceMappingRepository.findByDeviceId(deviceDto.getId());
+                    if (areaDeviceMappingOptional.isPresent()) {
+                        AreaDeviceMapping existingAreaDeviceMapping = areaDeviceMappingOptional.get();
+                        existingAreaDeviceMapping.setDevice(updatedDevice);
+                        existingAreaDeviceMapping.setArea(area);
+                        updatedDevice.setAreaDeviceMapping(existingAreaDeviceMapping);
+                    }
                 } else {
-
-                    AreaDeviceMapping newAreaDeviceMapping = new AreaDeviceMapping();
-                    newAreaDeviceMapping.setArea(area);
-                    newAreaDeviceMapping.setDevice(updatedDevice);
-                    updatedDevice.getAreaDeviceMappings().add(newAreaDeviceMapping);
+                    map.put(Constant.STATUS, Constant.ERROR);
+                    map.put(Constant.MESSAGE, "The customer does not have any products assigned to their account .Please ensure the customer has an associated product before adding a device");
+                    return map;
                 }
-            }
-            else {
+            } else {
                 map.put(Constant.STATUS, Constant.ERROR);
                 map.put(Constant.MESSAGE, Constant.AREA_NOT_FOUND);
                 return map;
@@ -214,20 +233,25 @@ public class DeviceManagementServiceImpl implements DeviceManagementService {
             map.put(Constant.STATUS, Constant.ERROR);
             map.put(Constant.MESSAGE, Constant.DEVICE_NOT_FOUND);
         }
-
         return map;
     }
 
     @Override
     public HashMap<String, Object> removeDevice(Integer deviceId) {
         HashMap<String, Object> map = new HashMap<>();
-        Optional<Device> optionalDevice= deviceRepository.findById(deviceId);
+        Optional<Device> optionalDevice = deviceRepository.findById(deviceId);
         if (optionalDevice.isPresent()) {
             Device device = optionalDevice.get();
-            device.setUser(null);
-            deviceRepository.deleteById(deviceId);
-            map.put(Constant.STATUS, Constant.SUCCESS);
-            map.put(Constant.MESSAGE, Constant.DELETE_SUCCESS);
+            Set<Ticket> tickets = device.getCustomerProductMappingDevice().getTickets();
+            if (tickets != null) {
+                map.put(Constant.STATUS, Constant.ERROR);
+                map.put(Constant.MESSAGE, "The device has associated tickets,please delete the tickets before removing the device ");
+            } else {
+                device.setUser(null);
+                deviceRepository.deleteById(deviceId);
+                map.put(Constant.STATUS, Constant.SUCCESS);
+                map.put(Constant.MESSAGE, Constant.DELETE_SUCCESS);
+            }
         } else {
             map.put(Constant.STATUS, Constant.ERROR);
             map.put(Constant.MESSAGE, Constant.DEVICE_NOT_FOUND);
@@ -236,39 +260,88 @@ public class DeviceManagementServiceImpl implements DeviceManagementService {
     }
 
     @Override
-    public HashMap<String, Object> getCustomerProductMappings() {
+    public HashMap<String, Object> getAllDevicesBasicDetails(String searchByName, Integer pageNo, Integer pageSize, Integer areaId, String token) {
         HashMap<String, Object> map = new HashMap<>();
-        List<CustomerProductMapping> customerProductMappings = customerProductMappingRepository.findAll();
-        List<Map<String, Object>> customerProductMappingDataList = new ArrayList<>();
-        for (CustomerProductMapping customerProductMapping : customerProductMappings) {
-            Map<String, Object> productData = new HashMap<>();
-            productData.put("id", customerProductMapping.getId());
-            productData.put("customerName", customerProductMapping.getCustomer().getName());
-            productData.put("productName", customerProductMapping.getProduct().getName());
-            customerProductMappingDataList.add(productData);
+        List<HashMap<String, Object>> deviceList = new ArrayList<>();
+        Area area = null;
+        if (areaId != null) {
+            Optional<Area> areaOptional = areaRepository.findById(areaId);
+            if (areaOptional.isPresent()) {
+                area = areaOptional.get();
+            } else {
+                map.put(Constant.STATUS, Constant.ERROR);
+                map.put(Constant.MESSAGE, Constant.AREA_NOT_FOUND);
+                return map;
+            }
         }
-
+        PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(new String[]{"name"}).ascending());
+        Area finalArea = area;
+        User user = utility.getLoggedInUser(token);
+        Customer usersCustomer = user.getCustomer();
+        Page<Device> devicePage = deviceRepository.findAll((root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (finalArea != null) {
+                Join<Device, AreaDeviceMapping> areaDeviceMappingJoin = root.join("areaDeviceMapping", JoinType.LEFT);
+                predicates.add(criteriaBuilder.equal(areaDeviceMappingJoin.get("area"), finalArea));
+            }
+            if (usersCustomer != null) {
+                Join<Device, CustomerProductMappingDevice> deviceCustomerProductMappingDeviceJoin = root.join("customerProductMappingDevice", JoinType.INNER);
+                Join<CustomerProductMappingDevice, CustomerProductMapping> customerProductMappingDeviceCustomerProductMappingJoin = deviceCustomerProductMappingDeviceJoin.join("customerProductMapping", JoinType.INNER);
+                predicates.add(criteriaBuilder.equal(customerProductMappingDeviceCustomerProductMappingJoin.get("customer"), usersCustomer));
+            }
+            if (searchByName != null && !searchByName.isEmpty()) {
+                String searchTerm = "%" + searchByName.toLowerCase() + "%";
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), searchTerm));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        }, pageRequest);
+        devicePage.stream().forEach(device -> {
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("id", device.getId());
+            data.put("name", device.getName());
+            deviceList.add(data);
+        });
         map.put(Constant.STATUS, Constant.SUCCESS);
-        map.put(Constant.DATA, customerProductMappingDataList);
+        map.put(Constant.DATA, deviceList);
         return map;
+
     }
 
     @Override
-    public HashMap<String, Object> getAllDevicesBasicDetails(String token, String searchByName, Integer pageNo, Integer pageSize) {
+    public HashMap<String, Object> getTotalDevices(Integer pageNo, Integer pageSize, String searchByName, Integer productId, String token) {
         HashMap<String, Object> map = new HashMap<>();
-        User user = utility.getLoggedInUser(token);
         List<HashMap<String, Object>> deviceList = new ArrayList<>();
-        Set<Device> userDevices = user.getDevices();
+        Product product = null;
+        if (productId != null) {
+            Optional<Product> productOptional = productRepository.findById(productId);
+            if (productOptional.isPresent()) {
+                product = productOptional.get();
+            } else {
+                map.put(Constant.STATUS, Constant.ERROR);
+                map.put(Constant.MESSAGE, Constant.DEVICE_NOT_FOUND);
+                return map;
+            }
+        }
         PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(new String[]{"name"}).ascending());
+        Product finalProduct = product;
+        User user = utility.getLoggedInUser(token);
+        Customer usersCustomer = user.getCustomer();
         Page<Device> devicePage = deviceRepository.findAll((root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
-            if (!userDevices.isEmpty()) {
-                predicates.add(root.in(userDevices));
+            if (finalProduct != null) {
+                Join<Device, CustomerProductMappingDevice> deviceCustomerProductMappingDeviceJoin = root.join("customerProductMappingDevice", JoinType.LEFT);
+                Join<CustomerProductMappingDevice, CustomerProductMapping> customerProductMappingDeviceCustomerProductMappingJoin = deviceCustomerProductMappingDeviceJoin.join("customerProductMapping", JoinType.LEFT);
+                predicates.add(criteriaBuilder.equal(customerProductMappingDeviceCustomerProductMappingJoin.get("product"), finalProduct));
             }
-            if(searchByName != null && !searchByName.isEmpty()) {
+            if (usersCustomer != null) {
+                Join<Device, CustomerProductMappingDevice> deviceCustomerProductMappingDeviceJoin = root.join("customerProductMappingDevice", JoinType.INNER);
+                Join<CustomerProductMappingDevice, CustomerProductMapping> customerProductMappingDeviceCustomerProductMappingJoin = deviceCustomerProductMappingDeviceJoin.join("customerProductMapping", JoinType.INNER);
+                predicates.add(criteriaBuilder.equal(customerProductMappingDeviceCustomerProductMappingJoin.get("customer"), usersCustomer));
+            }
+            if (searchByName != null && !searchByName.isEmpty()) {
                 String searchTerm = "%" + searchByName.toLowerCase() + "%";
-            predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), searchTerm));
-        }
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), searchTerm));
+            }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         }, pageRequest);
         devicePage.stream().forEach(device -> {
@@ -281,6 +354,4 @@ public class DeviceManagementServiceImpl implements DeviceManagementService {
         map.put(Constant.DATA, deviceList);
         return map;
     }
-    }
-
-
+}

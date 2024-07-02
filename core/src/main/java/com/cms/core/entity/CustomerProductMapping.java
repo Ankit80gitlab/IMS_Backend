@@ -19,13 +19,13 @@ public class CustomerProductMapping implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @OneToMany(mappedBy = "customerProductMapping",cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "customerProductMapping", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Ticket> tickets;
 
-    @OneToMany(mappedBy = "customerProductMapping",cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "customerProductMapping", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<CustomerProductMappingDevice> customerProductMappingDevices;
 
-    @OneToMany(mappedBy = "customerProductMapping",cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "customerProductMapping", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserProductMapping> userProductMappings;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -35,6 +35,9 @@ public class CustomerProductMapping implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
     private Product product;
+
+    @OneToMany(mappedBy = "customerProductMapping", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<IncidentEscalation> incidentEscalations;
 
 }
 

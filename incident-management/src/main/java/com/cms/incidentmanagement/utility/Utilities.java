@@ -8,16 +8,16 @@ import org.springframework.stereotype.Component;
 @Component
 public class Utilities {
 
-	@Autowired
-	private JwtUtil jwtUtil;
+    @Autowired
+    private JwtUtil jwtUtil;
 
-	@Autowired
-	private UserRepository userRepository;
+    @Autowired
+    private UserRepository userRepository;
 
-	public User getLoggedInUser(String token) {
-		if (token.startsWith("Bearer")) {
-			token = token.substring(7);
-		}
-		return userRepository.findByUsername(jwtUtil.getUsernameFromToken(token));
-	}
+    public User getLoggedInUser(String token) {
+        if (token.startsWith("Bearer")) {
+            token = token.substring(7);
+        }
+        return userRepository.findByUsername(jwtUtil.getUsernameFromToken(token));
+    }
 }

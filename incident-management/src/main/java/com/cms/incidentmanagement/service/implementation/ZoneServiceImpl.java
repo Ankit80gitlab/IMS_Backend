@@ -4,9 +4,6 @@ import com.cms.core.entity.*;
 import com.cms.core.repository.AreaRepository;
 import com.cms.core.repository.CustomerRepository;
 import com.cms.core.repository.ZoneRepository;
-import com.cms.incidentmanagement.dto.AreaDto;
-import com.cms.incidentmanagement.dto.CustomerDto;
-import com.cms.incidentmanagement.dto.ProductDto;
 import com.cms.incidentmanagement.dto.ZoneDto;
 import com.cms.incidentmanagement.service.ZoneService;
 import com.cms.incidentmanagement.utility.Constant;
@@ -48,7 +45,7 @@ public class ZoneServiceImpl implements ZoneService {
         }
 
         Zone zone = new Zone();
-        zone.setName(zoneDto.getName());
+        zone.setName(zoneDto.getName().trim());
         zone.setPolygon(zoneDto.getPolygon());
         Date date = new Date();
         Timestamp timestamp = new Timestamp(date.getTime());
@@ -66,39 +63,48 @@ public class ZoneServiceImpl implements ZoneService {
         }
         Zone savedZone = zoneRepository.save(zone);
         map.put(Constant.STATUS, Constant.SUCCESS);
-        map.put(Constant.MESSAGE, Constant.REGISTERED_SUCCESS);
+        map.put(Constant.MESSAGE, Constant.ADD_SUCCESS);
         map.put(Constant.DATA, new HashMap<String, Object>() {{
-            put("id", zone.getId());
+            put("id", savedZone.getId());
         }});
 
         return map;
     }
 
     @Override
-    public HashMap<String, Object> getAllZones(Integer pageNo, Integer pageSize) {
+    public HashMap<String, Object> getAllZones(Integer pageNo, Integer pageSize, String token, String searchByName) {
         HashMap<String, Object> map = new HashMap<>();
-        Page<Zone> zones;
-        if (pageNo == null) {
-            zones = zoneRepository.findAll(Pageable.unpaged());
-        } else {
-            zones = zoneRepository.findAll(PageRequest.of(pageNo, pageSize, Sort.by("id").descending()));
-        }
-        List<ZoneDto> zoneDtoList = new ArrayList<>();
-        for (Zone zone : zones) {
-            ZoneDto dto = new ZoneDto();
-            dto.setId(zone.getId());
-            dto.setName(zone.getName());
-            dto.setPolygon(zone.getPolygon());
-            dto.setCustomer(new HashMap<String,Object>(){{
+        User user = utility.getLoggedInUser(token);
+        List<HashMap<String, Object>> zoneList = new ArrayList<>();
+        Customer usersCustomer = user.getCustomer();
+        PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(new String[]{"name"}).ascending());
+        Page<Zone> zonePage = zoneRepository.findAll((root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (usersCustomer != null) {
+                predicates.add(criteriaBuilder.equal(root.get("customer"), usersCustomer));
+            }
+            if (searchByName != null && !searchByName.isEmpty()) {
+                String searchTerm = "%" + searchByName.toLowerCase() + "%";
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), searchTerm));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        }, pageRequest);
+        zonePage.stream().forEach(zone -> {
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("id", zone.getId());
+            data.put("name", zone.getName());
+            data.put("polygon", zone.getPolygon());
+            data.put("customer", new HashMap<String, Object>() {{
                 Customer customer = zone.getCustomer();
-                put("id",customer.getId());
-                put("name",customer.getName());
+                put("id", customer.getId());
+                put("name", customer.getName());
             }});
-            zoneDtoList.add(dto);
-        }
+            zoneList.add(data);
+        });
         map.put(Constant.STATUS, Constant.SUCCESS);
-        map.put(Constant.DATA, zoneDtoList);
+        map.put(Constant.DATA, zoneList);
         return map;
+
     }
 
     @Override
@@ -107,14 +113,21 @@ public class ZoneServiceImpl implements ZoneService {
         Optional<Zone> zoneOptional = zoneRepository.findById(zoneDto.getId());
         if (zoneOptional.isPresent()) {
             Zone updatedZone = zoneOptional.get();
-            updatedZone.setName(zoneDto.getName());
+            updatedZone.setName(zoneDto.getName().trim());
             updatedZone.setPolygon(zoneDto.getPolygon());
             User loggedInUser = utility.getLoggedInUser(token);
             updatedZone.setUser(loggedInUser);
             Optional<Customer> optionalCustomer = customerRepository.findById(zoneDto.getCustomerId());
             if (optionalCustomer.isPresent()) {
-                Customer customer = optionalCustomer.get();
-                updatedZone.setCustomer(customer);
+                Optional<Zone> zone = zoneRepository.findByCustomerId(zoneDto.getCustomerId());
+                if (zone.isPresent()) {
+                    map.put(Constant.STATUS, Constant.ERROR);
+                    map.put(Constant.MESSAGE, "Customer is already associated with zone");
+                    return map;
+                } else {
+                    Customer customer = optionalCustomer.get();
+                    updatedZone.setCustomer(customer);
+                }
             } else {
                 map.put(Constant.STATUS, Constant.ERROR);
                 map.put(Constant.MESSAGE, Constant.CUSTOMER_NOT_FOUND);
@@ -235,14 +248,14 @@ public class ZoneServiceImpl implements ZoneService {
         HashMap<String, Object> map = new HashMap<>();
         User user = utility.getLoggedInUser(token);
         List<HashMap<String, Object>> zoneList = new ArrayList<>();
-        Set<Zone> userZones = user.getZones();
+        Customer usersCustomer = user.getCustomer();
         PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(new String[]{"name"}).ascending());
         Page<Zone> zonePage = zoneRepository.findAll((root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
-            if (!userZones.isEmpty()) {
-                predicates.add(root.in(userZones));
+            if (usersCustomer != null) {
+                predicates.add(criteriaBuilder.equal(root.get("customer"), usersCustomer));
             }
-            if(searchByName != null && !searchByName.isEmpty()) {
+            if (searchByName != null && !searchByName.isEmpty()) {
                 String searchTerm = "%" + searchByName.toLowerCase() + "%";
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), searchTerm));
             }
@@ -258,6 +271,5 @@ public class ZoneServiceImpl implements ZoneService {
         map.put(Constant.DATA, zoneList);
         return map;
     }
-
 }
 

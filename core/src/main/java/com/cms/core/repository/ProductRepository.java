@@ -16,11 +16,7 @@ import java.util.List;
  */
 public interface ProductRepository extends JpaRepository<Product, Integer>,JpaSpecificationExecutor<Product> {
 
-
-    Page<Product> findByNameContainingIgnoreCase(@Param("name") String name, Pageable pageable);
-
     Product findByName(String name);
-
 
     long countByNameIgnoreCase(String productName);
 }

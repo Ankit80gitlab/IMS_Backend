@@ -8,5 +8,4 @@ import java.util.List;
 
 public interface UserRoleMappingRepository extends JpaRepository<UserRoleMapping, Integer> {
     List<UserRoleMapping> findByRoleId(Integer roleId);
-    List<UserRoleMapping> findByUserId(Integer userId);
 }

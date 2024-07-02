@@ -78,13 +78,13 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         "/roleManagement/deleteRole",
                         "/featureManagement/getAllFeatures",
                         "/featureManagement/getRoleFeatures",
-                        "/featureManagement/updateRoleFeature").hasAuthority("Role Management")
+                        "/featureManagement/updateRoleFeature").hasAuthority(Constant.ROLE_MANAGEMENT)
 
                 .antMatchers("/featureManagement/getAllFeatures",
                         "/featureManagement/getRoleFeatures",
-                        "/featureManagement/updateRoleFeature").hasAuthority("Feature Management")
+                        "/featureManagement/updateRoleFeature").hasAuthority(Constant.FEATURE_MANAGEMENT)
 
-                .antMatchers("/ticketManagement/getAllTickets",
+                .antMatchers("/ticketManagement/getAllTickets","/ticketManagement/updateTicket",
                         "/ticketManagement/create",
                         "/ticketManagement/delete").hasAuthority(Constant.TICKET_MANAGEMENT)
 

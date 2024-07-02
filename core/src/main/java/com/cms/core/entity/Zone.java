@@ -2,8 +2,6 @@ package com.cms.core.entity;
 
 import lombok.Getter;
 import lombok.Setter;
-import lombok.Getter;
-import lombok.Setter;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -31,7 +29,7 @@ public class Zone implements Serializable {
     @Column(name = "polygon", nullable = false)
     private String polygon;
 
-    @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "zone", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Area> areas;
 
     @ManyToOne(fetch = FetchType.LAZY)

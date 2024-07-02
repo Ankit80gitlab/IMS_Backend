@@ -12,13 +12,13 @@ public interface AreaService {
 
     HashMap<String, Object> addArea(AreaDto areaDto, String token);
 
-    HashMap<String, Object> getAllAreas(Integer pageNo, Integer pageSize);
+    HashMap<String, Object> getAllAreas(String token, Integer pageNo, Integer pageSize, String searchByName, Integer zoneId);
 
     HashMap<String, Object> updateArea(AreaDto areaDto, String token);
 
     HashMap<String, Object> removeArea(Integer areaId);
 
-    HashMap<String, Object> getAllAreasBasicDetails(String token,String searchByName, Integer pageNo, Integer pageSize);
+    HashMap<String, Object> getAllAreasBasicDetails(String searchByName, Integer pageNo, Integer pageSize, Integer zoneId,String token);
 
 
 }

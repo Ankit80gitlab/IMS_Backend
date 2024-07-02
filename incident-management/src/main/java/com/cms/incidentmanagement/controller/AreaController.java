@@ -2,7 +2,6 @@ package com.cms.incidentmanagement.controller;
 
 import com.cms.incidentmanagement.configuration.ExceptionConfig;
 import com.cms.incidentmanagement.dto.AreaDto;
-import com.cms.incidentmanagement.dto.ZoneDto;
 import com.cms.incidentmanagement.service.implementation.AreaServiceImpl;
 import com.cms.incidentmanagement.utility.Constant;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -36,23 +35,28 @@ public class AreaController {
             map = areaServiceImpl.addArea(areaDto, token);
         } catch (Exception e) {
             logger.error("error: " + e.getMessage());
-            map =  exceptionConfig.getTryCatchErrorMap(e);
+            map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
+
     @GetMapping("/getAllAreas")
     public HashMap<String, Object> getAllAreas(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
-            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+            @RequestParam(name = "zoneId", required = false) Integer zoneId,
+            @RequestParam(name = "searchByName", required = false) String searchByName) {
         HashMap<String, Object> map;
         try {
-            map = areaServiceImpl.getAllAreas(pageNo, pageSize);
+            map = areaServiceImpl.getAllAreas(token, pageNo, pageSize, searchByName, zoneId);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
+
     @PutMapping("/updateArea")
     public HashMap<String, Object> updateArea(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
@@ -81,16 +85,18 @@ public class AreaController {
         }
         return map;
     }
+
     @GetMapping("/getAllAreasBasicDetails")
     public HashMap<String, Object> getAllAreasBasicDetails(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
             @RequestParam(name = "searchByName", required = false) String searchByName,
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
-            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+            @RequestParam(name = "zoneId") Integer zoneId
     ) {
         HashMap<String, Object> map;
         try {
-            map = areaServiceImpl.getAllAreasBasicDetails(token, searchByName, pageNo, pageSize);
+            map = areaServiceImpl.getAllAreasBasicDetails(searchByName, pageNo, pageSize, zoneId, token);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);

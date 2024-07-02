@@ -18,8 +18,8 @@ public class TicketFile implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(name = "subject", nullable = false)
-    private String subject;
+    @Column(name = "optionalDescription", nullable = false)
+    private String optionalDescription;
 
     @Column(name = "file_path", nullable = false)
     private String filePath;
@@ -27,7 +27,14 @@ public class TicketFile implements Serializable {
     @Column(name = "file_type")
     private String fileType;
 
+    @Column(name = "file_name")
+    private String fileName;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticket_id", nullable = false)
     private Ticket ticket;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "comment_id")
+    private Comment comment;
 }

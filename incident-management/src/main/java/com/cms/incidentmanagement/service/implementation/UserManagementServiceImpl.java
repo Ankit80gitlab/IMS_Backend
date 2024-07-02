@@ -1,9 +1,8 @@
 package com.cms.incidentmanagement.service.implementation;
 
 import com.cms.core.entity.*;
+import com.cms.core.entity.UserType;
 import com.cms.core.repository.*;
-import com.cms.incidentmanagement.dto.ProductDto;
-import com.cms.incidentmanagement.dto.RoleDto;
 import com.cms.incidentmanagement.dto.UserDto;
 import com.cms.incidentmanagement.service.UserManagementService;
 import com.cms.incidentmanagement.utility.Constant;
@@ -11,7 +10,6 @@ import com.cms.incidentmanagement.utility.Utilities;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,167 +35,225 @@ public class UserManagementServiceImpl implements UserManagementService {
     @Autowired
     private CustomerProductMappingRepository customerProductMappingRepository;
     @Autowired
-    private UserProductMappingRepository userProductMappingRepository;
-    @Autowired
     private ProductRepository productRepository;
+    @Autowired
+    private UserTypeRepository userTypeRepository;
 
-    public HashMap<String, Object> getAllUsers(Integer pageNo, Integer pageSize) {
+    public HashMap<String, Object> getAllUsers(Integer pageNo, Integer pageSize, String token, String searchByUsername) {
         HashMap<String, Object> map = new HashMap<>();
-        Pageable pageable;
-        if (pageNo == null || pageSize == null) {
-            pageable = Pageable.unpaged();
-        } else {
-            pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "name"));
-        }
-        Page<User> userPage = userRepository.findAll(pageable);
-        List<UserDto> userDtos = userPage.getContent().stream()
-                .map(user -> {
-                    UserDto userDto = new UserDto();
-                    userDto.setId(user.getId());
-                    userDto.setName(user.getName());
-                    userDto.setEmail(user.getEmail());
-                    userDto.setUsername(user.getUsername());
-                    userDto.setPassword("");
-                    userDto.setRoleId(user.getUserRoleMappings().stream().findFirst().get().getRole().getId());
-                    if (user.getCustomer() != null && user.getCustomer().getId() != null) {
-                        userDto.setCustomerId(user.getCustomer().getId());
-                    } else {
-
-                        userDto.setCustomerId(null);
-                    }
-                    userDto.setProductIds(user.getUserProductMappings().stream().map(userProductMapping -> userProductMapping
-                            .getCustomerProductMapping().getProduct().getId()).collect(Collectors.toList()));
-                    return userDto;
-                }).collect(Collectors.toList());
+        User user = utility.getLoggedInUser(token);
+        List<HashMap<String, Object>> userList = new ArrayList<>();
+        Customer userCustomer = user.getCustomer();
+        PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(new String[]{"username"}).ascending());
+        Page<User> userPage = userRepository.findAll((root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (userCustomer != null) {
+                predicates.add(criteriaBuilder.equal(root.get("customer"), userCustomer));
+            }
+            if (searchByUsername != null && !searchByUsername.isEmpty()) {
+                String searchTerm = "%" + searchByUsername.toLowerCase() + "%";
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("username")), searchTerm));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        }, pageRequest);
+        userPage.stream().forEach(user1 -> {
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("id", user1.getId());
+            data.put("userName", user1.getUsername());
+            data.put("name", user1.getName());
+            data.put("email", user1.getEmail());
+            data.put("lat", user1.getLat());
+            data.put("lon", user1.getLon());
+            data.put("roleId", user1.getUserRoleMappings().stream().findFirst().get().getRole().getId());
+            Customer user1Customer = user1.getCustomer();
+            if (user1Customer != null) {
+                data.put("customerId", user1Customer.getId());
+                data.put("customerName", user1Customer.getName());
+                List<CustomerProductMapping> customerProductMappings = user1.getUserProductMappings().stream().map(mapping -> mapping.getCustomerProductMapping()).collect(Collectors.toList());
+                data.put("productIds", customerProductMappings.stream()
+                        .map(mapping -> mapping.getProduct().getId())
+                        .collect(Collectors.toList()));
+            } else {
+                data.put("customerId", null);
+                data.put("customerName", null);
+                data.put("productIds", Collections.emptyList());
+            }
+            Integer userTypeId = user1.getUserType() != null ? user1.getUserType().getId() : null;
+            data.put("userTypeId", userTypeId);
+            userList.add(data);
+        });
         map.put(Constant.STATUS, Constant.SUCCESS);
-        map.put(Constant.MESSAGE, userDtos);
+        map.put(Constant.DATA, userList);
         return map;
     }
 
-    public HashMap<String, Object> updateUser(UserDto userDto) {
+    public HashMap<String, Object> updateUser(UserDto userDto, String token) {
         HashMap<String, Object> map = new HashMap<>();
         Optional<User> optionalUser = userRepository.findById(userDto.getId());
         if (optionalUser.isPresent()) {
             User existingUser = optionalUser.get();
             if ("ImsAdmin".equals(existingUser.getUsername())) {
+                userDto.setIsEditable(false);
                 map.put(Constant.STATUS, Constant.ERROR);
                 map.put(Constant.MESSAGE, "User 'ImsAdmin' is not editable");
                 return map;
-            }
-            long existingZoneCount = userRepository.countByUsernameIgnoreCase(userDto.getUsername());
-            if (existingZoneCount > 0) {
-                map.put(Constant.STATUS, Constant.ERROR);
-                map.put(Constant.MESSAGE, Constant.USERNAME_ALREADY_EXIST);
-                return map;
             } else {
-                existingUser.setUsername(userDto.getUsername());
-            }
-            long existingEmailCount = userRepository.countByEmailIgnoreCase(userDto.getEmail());
-            if (existingEmailCount > 0) {
-                map.put(Constant.STATUS, Constant.ERROR);
-                map.put(Constant.MESSAGE, Constant.EMAIL_ALREADY_EXIST);
-                return map;
-            }
-            else{
-                existingUser.setEmail(userDto.getEmail());
-            }
-            existingUser.setName(userDto.getName());
-            existingUser.setEmail(userDto.getEmail());
-            Optional<Customer> optionalCustomer = customerRepository.findById(userDto.getCustomerId());
-            if (optionalCustomer.isPresent()) {
-                Customer customer = optionalCustomer.get();
-                existingUser.setCustomer(customer);
-            } else {
-                map.put(Constant.STATUS, Constant.ERROR);
-                map.put(Constant.MESSAGE, Constant.CUSTOMER_NOT_FOUND);
-                return map;
-            }
-            Optional<Role> optionalRole = roleRepository.findById(userDto.getRoleId());
-            if (optionalRole.isPresent()) {
-                Role newRole = optionalRole.get();
-                Set<UserRoleMapping> existingMappings = existingUser.getUserRoleMappings();
-                Set<Integer> existingRoleIds = existingMappings.stream()
-                        .map(mapping -> mapping.getRole().getId())
-                        .collect(Collectors.toSet());
-                Set<Integer> newRoleIds = Collections.singleton(newRole.getId());
-
-                Set<Integer> rolesToRemove = new HashSet<>(existingRoleIds);
-                rolesToRemove.removeAll(newRoleIds);
-
-                existingMappings.removeIf(mapping -> rolesToRemove.contains(mapping.getRole().getId()));
-                if (!existingRoleIds.contains(newRole.getId())) {
-                    UserRoleMapping newUserRoleMapping = new UserRoleMapping();
-                    newUserRoleMapping.setUser(existingUser);
-                    newUserRoleMapping.setRole(newRole);
-                    existingUser.getUserRoleMappings().add(newUserRoleMapping);
-                }
-
-            } else {
-                map.put(Constant.STATUS, Constant.ERROR);
-                map.put(Constant.MESSAGE, Constant.ROLE_ID_NOT_FOUND);
-                return map;
-            }
-            List<Integer> productIds = userDto.getProductIds();
-            List<Product> allProducts = productRepository.findAll();
-            for (Integer productId : productIds) {
-                boolean productFound = allProducts.stream()
-                        .anyMatch(product -> product.getId().equals(productId));
-                if (!productFound) {
-                    map.put(Constant.STATUS, Constant.ERROR);
-                    map.put(Constant.MESSAGE, Constant.PRODUCT_NOT_FOUND + " for productId=" + productId);
-                    return map;
-                }
-            }
-            List<CustomerProductMapping> customerProductMappingList = customerProductMappingRepository.findByCustomerIdAndProductIdIn(userDto.getCustomerId(), userDto.getProductIds());
-            Set<UserProductMapping> existingMappings = existingUser.getUserProductMappings();
-            if (customerProductMappingList != null && !customerProductMappingList.isEmpty()) {
-                Set<Integer> associatedProductIds = customerProductMappingList.stream()
-                        .map(mapping -> mapping.getProduct().getId())
-                        .collect(Collectors.toSet());
-                for (Integer productId : userDto.getProductIds()) {
-                    if (!associatedProductIds.contains(productId)) {
-
+                if (existingUser.getUsername().equalsIgnoreCase(userDto.getUserName())) {
+                    existingUser.setUsername(userDto.getUserName().trim());
+                } else {
+                    long existingZoneCount = userRepository.countByUsernameIgnoreCase(userDto.getUserName().trim());
+                    if (existingZoneCount > 0) {
                         map.put(Constant.STATUS, Constant.ERROR);
-                        map.put(Constant.MESSAGE, "Customer does not have access to Product with ProductId=" + productId);
+                        map.put(Constant.MESSAGE, Constant.USERNAME_ALREADY_EXIST);
                         return map;
+                    } else {
+                        existingUser.setUsername(userDto.getUserName().trim());
                     }
                 }
-                Set<Integer> existingCustomerProductIds = new HashSet<>();
-                existingMappings.forEach(mapping -> existingCustomerProductIds.add(mapping.getCustomerProductMapping().getId()));
-                Set<Integer> newCustomerProductIds = new HashSet<>(customerProductMappingList.stream().map(CustomerProductMapping::getId).collect(Collectors.toSet()));
-                Set<Integer> customerProductIdsToRemove = new HashSet<>(existingCustomerProductIds);
-                customerProductIdsToRemove.removeAll(newCustomerProductIds);
-                existingMappings.removeIf(mapping -> customerProductIdsToRemove.contains(mapping.getCustomerProductMapping().getId()));
-                Set<UserProductMapping> userProductMappings = new HashSet<>();
-                for (Integer customerProductId : newCustomerProductIds) {
-                    if (!existingCustomerProductIds.contains(customerProductId)) {
-                        Optional<CustomerProductMapping> customerProductMappingOptional = customerProductMappingRepository.findById(customerProductId);
-                        if (customerProductMappingOptional.isPresent()) {
-                            CustomerProductMapping customerProductMapping = customerProductMappingOptional.get();
-                            UserProductMapping newMapping = new UserProductMapping();
-                            newMapping.setUser(existingUser);
-                            newMapping.setCustomerProductMapping(customerProductMapping);
-                            userProductMappings.add(newMapping);
-                            userProductMappingRepository.save(newMapping);
+                if (existingUser.getEmail().equalsIgnoreCase(userDto.getEmail().trim())) {
+                    existingUser.setEmail(userDto.getEmail().trim());
+                } else {
+                    long existingEmailCount = userRepository.countByEmailIgnoreCase(userDto.getEmail().trim());
+                    if (existingEmailCount > 0) {
+                        map.put(Constant.STATUS, Constant.ERROR);
+                        map.put(Constant.MESSAGE, Constant.EMAIL_ALREADY_EXIST);
+                        return map;
+                    } else {
+                        existingUser.setEmail(userDto.getEmail().trim());
+                    }
+                }
+                existingUser.setName(userDto.getName());
+                existingUser.setLat(userDto.getLat());
+                existingUser.setLon(userDto.getLon());
+                if (userDto.getCustomerId() != null) {
+                    Optional<Customer> optionalCustomer = customerRepository.findById(userDto.getCustomerId());
+                    if (optionalCustomer.isPresent()) {
+                        Set<UserProductMapping> userProductMappings = existingUser.getUserProductMappings();
+                        Integer existingUsersCustomerId = existingUser.getCustomer().getId();
+                        if (!userProductMappings.isEmpty()) {
+                            if (userDto.getCustomerId() != existingUsersCustomerId) {
+                                map.put(Constant.STATUS, Constant.ERROR);
+                                map.put(Constant.MESSAGE, "Customer cannot be changed because of users association with another customer and its product");
+                                return map;
+                            } else {
+                                Customer customer = optionalCustomer.get();
+                                existingUser.setCustomer(customer);
+                            }
+
+                        } else {
+                            Customer customer = optionalCustomer.get();
+                            existingUser.setCustomer(customer);
+                        }
+                    } else {
+                        map.put(Constant.STATUS, Constant.ERROR);
+                        map.put(Constant.MESSAGE, Constant.CUSTOMER_NOT_FOUND);
+                        return map;
+                    }
+                } else {
+                    existingUser.setCustomer(null);
+                }
+                if (userDto.getUserTypeId() != null) {
+                    Optional<UserType> userTypeOptional = userTypeRepository.findById(userDto.getUserTypeId());
+                    if (userTypeOptional.isPresent()) {
+                        UserType userType = userTypeOptional.get();
+                        existingUser.setUserType(userType);
+                    } else {
+                        map.put(Constant.STATUS, Constant.ERROR);
+                        map.put(Constant.MESSAGE, Constant.TYPE_NOT_FOUND);
+                        return map;
+                    }
+                } else {
+                    existingUser.setUserType(null);
+                }
+                Optional<Role> optionalRole = roleRepository.findById(userDto.getRoleId());
+                if (optionalRole.isPresent()) {
+                    Role newRole = optionalRole.get();
+                    User user = utility.getLoggedInUser(token);
+                    String roleName = user.getUserRoleMappings().stream().findFirst().get().getRole().getName();
+                    Set<UserRoleMapping> existingMappings = existingUser.getUserRoleMappings();
+                    Set<Integer> existingRoleIds = existingMappings.stream()
+                            .map(mapping -> mapping.getRole().getId())
+                            .collect(Collectors.toSet());
+                    Set<Integer> newRoleIds = Collections.singleton(newRole.getId());
+                    Set<Integer> rolesToRemove = new HashSet<>(existingRoleIds);
+                    rolesToRemove.removeAll(newRoleIds);
+                    existingMappings.removeIf(mapping -> rolesToRemove.contains(mapping.getRole().getId()));
+                    if (!existingRoleIds.contains(newRole.getId())) {
+                        UserRoleMapping newUserRoleMapping = new UserRoleMapping();
+                        newUserRoleMapping.setUser(existingUser);
+                        newUserRoleMapping.setRole(newRole);
+                        existingUser.getUserRoleMappings().add(newUserRoleMapping);
+                    }
+                } else {
+                    map.put(Constant.STATUS, Constant.ERROR);
+                    map.put(Constant.MESSAGE, Constant.ROLE_ID_NOT_FOUND);
+                    return map;
+                }
+                if (userDto.getProductIds() != null) {
+                    if (userDto.getProductIds().isEmpty()) {
+                        existingUser.getUserProductMappings().clear();
+                    } else {
+                        List<Product> allProducts = productRepository.findAll();
+                        Set<Integer> validProductIds = allProducts.stream().map(Product::getId).collect(Collectors.toSet());
+                        for (Integer productId : userDto.getProductIds()) {
+                            if (!validProductIds.contains(productId)) {
+                                map.put(Constant.STATUS, Constant.ERROR);
+                                map.put(Constant.MESSAGE, Constant.PRODUCT_NOT_FOUND + " for productId=" + productId);
+                                return map;
+                            }
+                        }
+                        if (userDto.getCustomerId() != null) {
+                            List<CustomerProductMapping> customerProductMappingList = customerProductMappingRepository.findByCustomerIdAndProductIdIn(userDto.getCustomerId(), userDto.getProductIds());
+                            if (customerProductMappingList == null || customerProductMappingList.isEmpty()) {
+                                map.put(Constant.STATUS, Constant.ERROR);
+                                map.put(Constant.MESSAGE, "No Products are Associated for the CustomerId=" + userDto.getCustomerId());
+                                return map;
+                            }
+                            Set<Integer> associatedProductIds = customerProductMappingList.stream()
+                                    .map(mapping -> mapping.getProduct().getId())
+                                    .collect(Collectors.toSet());
+                            for (Integer productId : userDto.getProductIds()) {
+                                if (!associatedProductIds.contains(productId)) {
+                                    map.put(Constant.STATUS, Constant.ERROR);
+                                    map.put(Constant.MESSAGE, "Customer does not have access to Product with ProductId=" + productId);
+                                    return map;
+                                }
+                            }
+                            Set<UserProductMapping> existingMappings = existingUser.getUserProductMappings();
+                            Set<Integer> existingCustomerProductIds = existingMappings.stream()
+                                    .map(mapping -> mapping.getCustomerProductMapping().getId())
+                                    .collect(Collectors.toSet());
+                            Set<Integer> newCustomerProductIds = customerProductMappingList.stream()
+                                    .map(CustomerProductMapping::getId)
+                                    .collect(Collectors.toSet());
+                            existingMappings.removeIf(mapping -> !newCustomerProductIds.contains(mapping.getCustomerProductMapping().getId()));
+                            for (Integer customerProductId : newCustomerProductIds) {
+                                if (!existingCustomerProductIds.contains(customerProductId)) {
+                                    Optional<CustomerProductMapping> customerProductMappingOptional = customerProductMappingRepository.findById(customerProductId);
+                                    if (customerProductMappingOptional.isPresent()) {
+                                        CustomerProductMapping customerProductMapping = customerProductMappingOptional.get();
+                                        UserProductMapping newMapping = new UserProductMapping();
+                                        newMapping.setUser(existingUser);
+                                        newMapping.setCustomerProductMapping(customerProductMapping);
+                                        existingMappings.add(newMapping);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-
-            } else {
-
-                map.put(Constant.STATUS, Constant.ERROR);
-                map.put(Constant.MESSAGE, "No Products are Associated for the CustomerId=" + userDto.getCustomerId());
-                return map;
+                userRepository.save(existingUser);
+                map.put(Constant.STATUS, Constant.SUCCESS);
+                map.put(Constant.MESSAGE, Constant.UPDATE_SUCCESS);
             }
-            userRepository.save(existingUser);
-            map.put(Constant.STATUS, Constant.SUCCESS);
-            map.put(Constant.MESSAGE, Constant.UPDATE_SUCCESS);
+
         } else {
             map.put(Constant.STATUS, Constant.ERROR);
             map.put(Constant.MESSAGE, Constant.USER_NOT_FOUND);
         }
         return map;
     }
+
     public HashMap<String, Object> changePassword(String token, String currentPassword, String newPassword) {
         HashMap<String, Object> map = new HashMap<>();
         BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder();
@@ -226,12 +282,33 @@ public class UserManagementServiceImpl implements UserManagementService {
     }
 
 
-    public HashMap<String, Object> removeUser(Integer userId) {
+    public HashMap<String, Object> removeUser(Integer userId, String token) {
         HashMap<String, Object> map = new HashMap<>();
-        if (userRepository.findById(userId).isPresent()) {
-            userRepository.deleteById(userId);
-            map.put(Constant.STATUS, Constant.SUCCESS);
-            map.put(Constant.MESSAGE, Constant.DELETE_SUCCESS);
+        User loggedInUser = utility.getLoggedInUser(token);
+        if (loggedInUser.getId().equals(userId)) {
+            map.put(Constant.STATUS, Constant.ERROR);
+            map.put(Constant.MESSAGE, "User cannot delete themselves");
+            return map;
+        }
+        Optional<User> user = userRepository.findById(userId);
+        if (user.isPresent()) {
+            User user1 = user.get();
+            if ("ImsAdmin".equals(user1.getUsername())) {
+                map.put(Constant.STATUS, Constant.ERROR);
+                map.put(Constant.MESSAGE, "User 'ImsAdmin' cannot be Deleted");
+                return map;
+            }
+            Set<UserProductMapping> userProductMappings = user1.getUserProductMappings();
+            if (userProductMappings.isEmpty()) {
+                userRepository.deleteById(userId);
+                map.put(Constant.STATUS, Constant.SUCCESS);
+                map.put(Constant.MESSAGE, Constant.DELETE_SUCCESS);
+            } else {
+                map.put(Constant.STATUS, Constant.ERROR);
+                map.put(Constant.MESSAGE, "User cannot be deleted because user has asociation with a customer and with one or more product");
+                return map;
+            }
+
         } else {
             map.put(Constant.STATUS, Constant.ERROR);
             map.put(Constant.MESSAGE, Constant.USER_NOT_FOUND);
@@ -242,7 +319,7 @@ public class UserManagementServiceImpl implements UserManagementService {
     @Override
     public HashMap<String, Object> registerUser(UserDto userDto, String token) {
         HashMap<String, Object> map = new HashMap<>();
-        long existingZoneCount = userRepository.countByUsernameIgnoreCase(userDto.getUsername());
+        long existingZoneCount = userRepository.countByUsernameIgnoreCase(userDto.getUserName());
         if (existingZoneCount > 0) {
             map.put(Constant.STATUS, Constant.ERROR);
             map.put(Constant.MESSAGE, Constant.USERNAME_ALREADY_EXIST);
@@ -257,16 +334,29 @@ public class UserManagementServiceImpl implements UserManagementService {
         User user = new User();
         user.setName(userDto.getName());
         user.setEmail(userDto.getEmail());
-        user.setUsername(userDto.getUsername());
+        user.setUsername(userDto.getUserName().trim());
         String newPass = passwordEncoder.encode(userDto.getPassword());
         user.setPassword(newPass);
         user.setLdapUser(false);
         Date date = new Date();
         Timestamp timestamp = new Timestamp(date.getTime());
         user.setCreatedTime(timestamp);
-        user.setLoginTime(timestamp);
+        user.setLoginTime(null);
         User loggedInUser = utility.getLoggedInUser(token);
         user.setUser(loggedInUser);
+        user.setLat(userDto.getLat());
+        user.setLon(userDto.getLon());
+        Integer userTypeId = userDto.getUserTypeId();
+        if (userTypeId != null) {
+            Optional<UserType> userTypeOptional = userTypeRepository.findById(userDto.getUserTypeId());
+            if (!userTypeOptional.isPresent()) {
+                user.setUserType(null);
+            } else {
+                UserType userType = userTypeOptional.get();
+                user.setUserType(userType);
+            }
+
+        }
         Optional<Role> optionalRole = roleRepository.findById(userDto.getRoleId());
         if (optionalRole.isPresent()) {
             Role assignedRole = optionalRole.get();
@@ -281,8 +371,6 @@ public class UserManagementServiceImpl implements UserManagementService {
             map.put(Constant.MESSAGE, Constant.ROLE_NOT_FOUND);
             return map;
         }
-//            admin -> admin (cus id =null and produ=null, role =admin)
-//            admin -> user (cus id =3 and produ=[4,5], role =user)
         if (userDto.getCustomerId() != null) {
             Optional<Customer> optionalCustomer = customerRepository.findById(userDto.getCustomerId());
             if (optionalCustomer.isPresent()) {
@@ -298,54 +386,52 @@ public class UserManagementServiceImpl implements UserManagementService {
         }
 
         List<Integer> productIds = userDto.getProductIds();
-        List<Product> allProducts = productRepository.findAll();
-        for (Integer productId : productIds) {
-            boolean productFound = allProducts.stream()
-                    .anyMatch(product -> product.getId().equals(productId));
-
-            if (!productFound) {
-                map.put(Constant.STATUS, Constant.ERROR);
-                map.put(Constant.MESSAGE, Constant.PRODUCT_NOT_FOUND + " for productId=" + productId);
-                return map;
-            }
-        }
-
         Set<UserProductMapping> userProductMappings = new HashSet<>();
-        if (userDto.getCustomerId() != null && userDto.getProductIds() != null) {
-            List<CustomerProductMapping> customerProductMappingList = customerProductMappingRepository.findByCustomerIdAndProductIdIn(userDto.getCustomerId(), userDto.getProductIds());
-            if (customerProductMappingList != null && !customerProductMappingList.isEmpty()) {
-                Set<Integer> associatedProductIds = customerProductMappingList.stream()
-                        .map(mapping -> mapping.getProduct().getId())
-                        .collect(Collectors.toSet());
-                for (Integer productId : userDto.getProductIds()) {
-                    if (!associatedProductIds.contains(productId)) {
+        if (productIds != null && !productIds.isEmpty()) {
+            List<Product> allProducts = productRepository.findAll();
+            for (Integer productId : productIds) {
+                boolean productFound = allProducts.stream()
+                        .anyMatch(product -> product.getId().equals(productId));
 
-                        map.put(Constant.STATUS, Constant.ERROR);
-                        map.put(Constant.MESSAGE, "Customer does not have access to Product with ProductId=" + productId);
-                        return map;
-                    }
+                if (!productFound) {
+                    map.put(Constant.STATUS, Constant.ERROR);
+                    map.put(Constant.MESSAGE, Constant.PRODUCT_NOT_FOUND + " for productId=" + productId);
+                    return map;
                 }
-                for (CustomerProductMapping customerProductMapping : customerProductMappingList) {
-                    UserProductMapping userProductMapping = new UserProductMapping();
-                    userProductMapping.setUser(user);
-                    userProductMapping.setCustomerProductMapping(customerProductMapping);
-                    userProductMappings.add(userProductMapping);
-                }
-                user.setUserProductMappings(userProductMappings);
-            } else {
-                map.put(Constant.STATUS, Constant.ERROR);
-                map.put(Constant.MESSAGE, "No Products are Associated for the CustomerId=" + userDto.getCustomerId());
-                return map;
             }
-        } else {
-            user.setUserProductMappings(userProductMappings);
+            if (userDto.getCustomerId() != null) {
+                List<CustomerProductMapping> customerProductMappingList = customerProductMappingRepository.findByCustomerIdAndProductIdIn(userDto.getCustomerId(), userDto.getProductIds());
+                if (customerProductMappingList != null && !customerProductMappingList.isEmpty()) {
+                    Set<Integer> associatedProductIds = customerProductMappingList.stream()
+                            .map(mapping -> mapping.getProduct().getId())
+                            .collect(Collectors.toSet());
+                    for (Integer productId : userDto.getProductIds()) {
+                        if (!associatedProductIds.contains(productId)) {
+                            map.put(Constant.STATUS, Constant.ERROR);
+                            map.put(Constant.MESSAGE, "Customer does not have access to Product with ProductId=" + productId);
+                            return map;
+                        }
+                    }
+                    for (CustomerProductMapping customerProductMapping : customerProductMappingList) {
+                        UserProductMapping userProductMapping = new UserProductMapping();
+                        userProductMapping.setUser(user);
+                        userProductMapping.setCustomerProductMapping(customerProductMapping);
+                        userProductMappings.add(userProductMapping);
+                    }
+                } else {
+                    map.put(Constant.STATUS, Constant.ERROR);
+                    map.put(Constant.MESSAGE, "No Products are Associated for the CustomerId=" + userDto.getCustomerId());
+                    return map;
+                }
+            }
         }
-
         user.setUserProductMappings(userProductMappings);
         User savedUser = userRepository.save(user);
         map.put(Constant.STATUS, Constant.SUCCESS);
         map.put(Constant.MESSAGE, Constant.REGISTERED_SUCCESS);
-        map.put(Constant.DATA, savedUser.getId());
+        map.put(Constant.DATA, new HashMap<String, Object>() {{
+            put("id", savedUser.getId());
+        }});
         return map;
     }
 
@@ -354,12 +440,12 @@ public class UserManagementServiceImpl implements UserManagementService {
         HashMap<String, Object> map = new HashMap<>();
         User user = utility.getLoggedInUser(token);
         List<HashMap<String, Object>> userList = new ArrayList<>();
-        Set<User> usersOfUser = user.getUsers();
+        Customer userCustomer = user.getCustomer();
         PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(new String[]{"username"}).ascending());
         Page<User> userPage = userRepository.findAll((root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
-            if (!usersOfUser.isEmpty()) {
-                predicates.add(root.in(usersOfUser));
+            if (userCustomer != null) {
+                predicates.add(criteriaBuilder.equal(root.get("customer"), userCustomer));
             }
             if (searchByUsername != null && !searchByUsername.isEmpty()) {
                 String searchTerm = "%" + searchByUsername.toLowerCase() + "%";
@@ -369,8 +455,10 @@ public class UserManagementServiceImpl implements UserManagementService {
         }, pageRequest);
         userPage.stream().forEach(user1 -> {
             HashMap<String, Object> data = new HashMap<>();
+            Customer user1Customer = user1.getCustomer();
+            data.put("customerId", user1Customer.getId());
             data.put("id", user1.getId());
-            data.put("Username", user1.getUsername());
+            data.put("userName", user1.getUsername());
             userList.add(data);
         });
         map.put(Constant.STATUS, Constant.SUCCESS);
@@ -378,6 +466,115 @@ public class UserManagementServiceImpl implements UserManagementService {
         return map;
     }
 
+    @Override
+    public HashMap<String, Object> getAllCustomersUser(Integer pageNo, Integer pageSize, String token, String searchByUsername) {
+        HashMap<String, Object> map = new HashMap<>();
+        User user = utility.getLoggedInUser(token);
+        List<HashMap<String, Object>> userList = new ArrayList<>();
+        Customer userCustomer = user.getCustomer();
+        PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(new String[]{"username"}).ascending());
+        Page<User> userPage = userRepository.findAll((root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(criteriaBuilder.isNotNull(root.get("customer")));
+            if (userCustomer != null) {
+                predicates.add(criteriaBuilder.equal(root.get("customer"), userCustomer));
+            }
+            if (searchByUsername != null && !searchByUsername.isEmpty()) {
+                String searchTerm = "%" + searchByUsername.toLowerCase() + "%";
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("username")), searchTerm));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        }, pageRequest);
+        userPage.stream().forEach(user1 -> {
+            HashMap<String, Object> data = new HashMap<>();
+            Customer user1Customer = user1.getCustomer();
+            if (user1Customer != null) {
+                data.put("id", user1.getId());
+                data.put("userName", user1.getUsername());
+                data.put("name", user1.getName());
+                data.put("email", user1.getEmail());
+                data.put("lat", user1.getLat());
+                data.put("lon", user1.getLon());
+                data.put("roleId", user1.getUserRoleMappings().stream().findFirst().get().getRole().getId());
+                data.put("customerId", user1Customer.getId());
+                data.put("customerName", user1Customer.getName());
+                data.put("productIds", user1Customer.getCustomerProductMappings().stream()
+                        .map(mapping -> mapping.getProduct().getId())
+                        .collect(Collectors.toList()));
+            }
+            userList.add(data);
+        });
+        map.put(Constant.STATUS, Constant.SUCCESS);
+        map.put(Constant.DATA, userList);
+        return map;
+    }
+
+    @Override
+    public HashMap<String, Object> getAllUsersOfCustomer(Integer pageNo, Integer pageSize, String searchByUsername, Integer customerId) {
+        HashMap<String, Object> map = new HashMap<>();
+        List<HashMap<String, Object>> userList = new ArrayList<>();
+        Optional<Customer> customerOptional = customerRepository.findById(customerId);
+        if (customerOptional.isPresent()) {
+            Customer customer = customerOptional.get();
+            PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(new String[]{"name"}).ascending());
+            Page<User> userPage = userRepository.findAll((root, query, criteriaBuilder) -> {
+                List<Predicate> predicates = new ArrayList<>();
+                predicates.add(criteriaBuilder.equal(root.get("customer"), customer));
+                if (searchByUsername != null && !searchByUsername.isEmpty()) {
+                    String searchTerm = "%" + searchByUsername.toLowerCase() + "%";
+                    predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("username")), searchTerm));
+                }
+                return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+            }, pageRequest);
+            userPage.stream().forEach(user -> {
+                HashMap<String, Object> data = new HashMap<>();
+                data.put("id", user.getId());
+                data.put("userName", user.getUsername());
+                List<Product> products = user.getUserProductMappings().stream().map(mapping -> mapping.getCustomerProductMapping().getProduct()).collect(Collectors.toList());
+                List<HashMap<String, Object>> productDetailsList = new ArrayList<>();
+                for (Product product : products) {
+                    HashMap<String, Object> productData = new HashMap<>();
+                    productData.put("id", product.getId());
+                    productData.put("name", product.getName());
+                    productDetailsList.add(productData);
+                }
+                data.put("products", productDetailsList);
+                userList.add(data);
+            });
+            map.put(Constant.STATUS, Constant.SUCCESS);
+            map.put(Constant.DATA, userList);
+            return map;
+
+        } else {
+            map.put(Constant.STATUS, Constant.ERROR);
+            map.put(Constant.MESSAGE, Constant.CUSTOMER_NOT_FOUND);
+            return map;
+        }
+    }
+
+    @Override
+    public HashMap<String, Object> getAllTypesForUser(Integer pageNo, Integer pageSize, String searchByName) {
+        HashMap<String, Object> map = new HashMap<>();
+        List<HashMap<String, Object>> userTypeList = new ArrayList<>();
+        PageRequest pageRequest = PageRequest.of(pageNo, pageSize, Sort.by(new String[]{"name"}).ascending());
+        Page<UserType> userTypePage = userTypeRepository.findAll((root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (searchByName != null && !searchByName.isEmpty()) {
+                String searchTerm = "%" + searchByName.toLowerCase() + "%";
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")), searchTerm));
+            }
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        }, pageRequest);
+        userTypePage.stream().forEach(userType -> {
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("id", userType.getId());
+            data.put("name", userType.getName());
+            userTypeList.add(data);
+        });
+        map.put(Constant.STATUS, Constant.SUCCESS);
+        map.put(Constant.DATA, userTypeList);
+        return map;
+    }
 }
 
 

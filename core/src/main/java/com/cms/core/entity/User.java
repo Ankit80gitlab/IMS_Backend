@@ -32,6 +32,12 @@ public class User implements Serializable {
 
     private Boolean ldapUser = false;
 
+    @Column(name = "lat", nullable = false)
+    private double lat;
+
+    @Column(name = "lon", nullable = false)
+    private double lon;
+
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserRoleMapping> userRoleMappings;
 
@@ -39,13 +45,13 @@ public class User implements Serializable {
     @JoinColumn(name = "customer_id")
     private Customer customer;
 
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY,cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserProductMapping> userProductMappings;
 
-    @OneToMany(mappedBy = "createdUser", fetch = FetchType.LAZY,cascade = CascadeType.ALL)
-    private Set<Ticket> Tickets;
+    @OneToMany(mappedBy = "createdUser", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private Set<Ticket> tickets;
 
-    @OneToMany(mappedBy = "assignedTo", fetch = FetchType.LAZY,cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "assignedTo", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Set<Ticket> assignedTickets;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -55,20 +61,9 @@ public class User implements Serializable {
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Set<AreaUserMapping> areaUserMappings;
 
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private Set<Device> devices;
-
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private Set<Product> products;
-
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    Set<User>users;
-
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    Set<Zone>zones;
-
-
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "type")
+    private UserType userType;
 
 }
 

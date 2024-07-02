@@ -32,6 +32,9 @@ public class Product implements Serializable {
     @JoinColumn(name = "created_by")
     private User user;
 
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<IncidentType> incidentTypes;
+
 }
 
 

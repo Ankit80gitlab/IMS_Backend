@@ -61,28 +61,20 @@ public class ProductController {
 
     @GetMapping("/getAllProducts")
     public HashMap<String, Object> getAllProducts(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String token,
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
-            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+            @RequestParam(name = "searchByName", required = false) String searchByName) {
         HashMap<String, Object> map;
         try {
-            map = productServiceImpl.getAllProducts(pageNo, pageSize);
+            map = productServiceImpl.getAllProducts(pageNo, pageSize, token, searchByName);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
     }
-    @GetMapping("/getProducts")
-    public HashMap<String, Object> getProducts() {
-        HashMap<String, Object> map;
-        try {
-            map = productServiceImpl.getProducts();
-        } catch (Exception e) {
-            logger.error("error :" + e.getMessage());
-            map = exceptionConfig.getTryCatchErrorMap(e);
-        }
-        return map;
-    }
+
 
     @DeleteMapping("/deleteProduct")
     public HashMap<String, Object> removeProduct(
@@ -99,17 +91,35 @@ public class ProductController {
     }
 
 
-
     @GetMapping("/getAllProductsBasicDetails")
     public HashMap<String, Object> getAllProductsBasicDetails(
             @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "customerId", required = false) Integer customerId,
             @RequestParam(name = "searchByName", required = false) String searchByName,
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
             @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize
     ) {
         HashMap<String, Object> map;
         try {
-            map = productServiceImpl.getAllProductsBasicDetails(token, searchByName, pageNo, pageSize);
+            map = productServiceImpl.getAllProductsBasicDetails(token, customerId, searchByName, pageNo, pageSize);
+        } catch (Exception e) {
+            logger.error("error :" + e.getMessage());
+            map = exceptionConfig.getTryCatchErrorMap(e);
+        }
+        return map;
+    }
+
+    @GetMapping("/getAllIncidentTypeByProductId")
+    public HashMap<String, Object> getAllIncidentTypeByProductId(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "searchByType", required = false) String searchByType,
+            @RequestParam(name = "pageNo", required = false) Integer pageNo,
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+            @RequestParam(name = "productId") Integer productId
+    ) {
+        HashMap<String, Object> map;
+        try {
+            map = productServiceImpl.getAllIncidentTypeByProductId(token, productId, searchByType, pageNo, pageSize);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             map = exceptionConfig.getTryCatchErrorMap(e);

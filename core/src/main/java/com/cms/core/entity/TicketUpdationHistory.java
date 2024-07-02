@@ -4,7 +4,6 @@ package com.cms.core.entity;
  * Created by Shashidhar on 4/18/2024.
  */
 
-import lombok.Getter; import lombok.Setter;
 import lombok.Getter;
 import lombok.Setter;
 

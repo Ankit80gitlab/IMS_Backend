@@ -1,10 +1,11 @@
 package com.cms.incidentmanagement.controller;
 
-
 import com.cms.incidentmanagement.configuration.ExceptionConfig;
 import com.cms.incidentmanagement.dto.UserDto;
 import com.cms.incidentmanagement.service.implementation.UserManagementServiceImpl;
 import com.cms.incidentmanagement.utility.Constant;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +19,10 @@ import java.util.HashMap;
 @SecurityRequirement(name = Constant.BEARER_AUTH)
 @RestController
 @RequestMapping("/userManagement")
+@ApiResponses(value = {
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+})
 public class UserManagementController {
 
     private static final Logger logger = LoggerFactory.getLogger(UserManagementController.class);
@@ -42,11 +47,13 @@ public class UserManagementController {
 
     @RequestMapping(method = RequestMethod.GET, value = "/getAllUser")
     public HashMap<String, Object> getAllUsers(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "searchByName", required = false) String searchByUsername,
             @RequestParam(name = "pageNo", required = false) Integer pageNo,
             @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
         HashMap<String, Object> allUserMap;
         try {
-            allUserMap = userManagementServiceImpl.getAllUsers(pageNo, pageSize);
+            allUserMap = userManagementServiceImpl.getAllUsers(pageNo, pageSize, token, searchByUsername);
         } catch (Exception e) {
             logger.error("error : " + e.getMessage());
             allUserMap = exceptionConfig.getTryCatchErrorMap(e);
@@ -60,7 +67,7 @@ public class UserManagementController {
             @RequestBody UserDto userDto) {
         HashMap<String, Object> updatedUserMap;
         try {
-            updatedUserMap = userManagementServiceImpl.updateUser(userDto);
+            updatedUserMap = userManagementServiceImpl.updateUser(userDto, token);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             updatedUserMap = exceptionConfig.getTryCatchErrorMap(e);
@@ -90,15 +97,13 @@ public class UserManagementController {
             @RequestParam(name = "userId", required = false) Integer userId) {
         HashMap<String, Object> deleteUserMap;
         try {
-            deleteUserMap = userManagementServiceImpl.removeUser(userId);
+            deleteUserMap = userManagementServiceImpl.removeUser(userId, token);
         } catch (Exception e) {
             logger.error("error :" + e.getMessage());
             deleteUserMap = exceptionConfig.getTryCatchErrorMap(e);
         }
         return deleteUserMap;
     }
-
-
 
     @GetMapping("/getAllUsersBasicDetails")
     public HashMap<String, Object> getAllUSersBasicDetails(
@@ -115,5 +120,54 @@ public class UserManagementController {
             map = exceptionConfig.getTryCatchErrorMap(e);
         }
         return map;
+    }
+
+    @GetMapping("/getAllCustomersUser")
+    public HashMap<String, Object> getAllCustomersUser(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION) String token,
+            @RequestParam(name = "searchByName", required = false) String searchByUsername,
+            @RequestParam(name = "pageNo", required = false) Integer pageNo,
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize) {
+        HashMap<String, Object> allUserMap;
+        try {
+            allUserMap = userManagementServiceImpl.getAllCustomersUser(pageNo, pageSize, token, searchByUsername);
+        } catch (Exception e) {
+            logger.error("error : " + e.getMessage());
+            allUserMap = exceptionConfig.getTryCatchErrorMap(e);
+        }
+        return allUserMap;
+    }
+
+    @GetMapping("/getAllUsersOfCustomer")
+    public HashMap<String, Object> getAllUsersOfCustomer(
+            @RequestParam(name = "searchByName", required = false) String searchByUsername,
+            @RequestParam(name = "pageNo", required = false) Integer pageNo,
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize,
+            @RequestParam(name = "customerId") Integer customerId
+    ) {
+        HashMap<String, Object> allUserMap;
+        try {
+            allUserMap = userManagementServiceImpl.getAllUsersOfCustomer(pageNo, pageSize, searchByUsername, customerId);
+        } catch (Exception e) {
+            logger.error("error : " + e.getMessage());
+            allUserMap = exceptionConfig.getTryCatchErrorMap(e);
+        }
+        return allUserMap;
+    }
+
+    @GetMapping("/getAllTypesForUser")
+    public HashMap<String, Object> getAllTypesForUser(
+            @RequestParam(name = "name", required = false) String searchByName,
+            @RequestParam(name = "pageNo", required = false) Integer pageNo,
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") Integer pageSize
+    ) {
+        HashMap<String, Object> allUserMap;
+        try {
+            allUserMap = userManagementServiceImpl.getAllTypesForUser(pageNo, pageSize, searchByName);
+        } catch (Exception e) {
+            logger.error("error : " + e.getMessage());
+            allUserMap = exceptionConfig.getTryCatchErrorMap(e);
+        }
+        return allUserMap;
     }
 }

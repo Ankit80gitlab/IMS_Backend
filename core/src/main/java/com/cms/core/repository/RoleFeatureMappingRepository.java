@@ -7,7 +7,4 @@ import java.util.List;
 
 public interface RoleFeatureMappingRepository extends JpaRepository<RoleFeatureMapping, Integer> {
 
-    List<RoleFeatureMapping> findByRoleId(Integer roleId);
-
-    void deleteByRoleId(Integer roleId);
 }

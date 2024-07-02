@@ -1,6 +1,5 @@
 package com.cms.core.entity;
 
-import lombok.Getter; import lombok.Setter;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,7 +14,8 @@ import java.util.Set;
  */
 
 @Entity
-@Getter @Setter
+@Getter
+@Setter
 @Table(name = "customer")
 public class Customer implements Serializable {
     @Id
@@ -28,10 +28,10 @@ public class Customer implements Serializable {
 
     private String city;
 
-    @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY,cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<CustomerProductMapping> customerProductMappings;
 
-    @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY,cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private Set<User> users;
 
     @ManyToOne
@@ -41,6 +41,8 @@ public class Customer implements Serializable {
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
     private Set<Zone> zones;
 
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
+    private Set<Role> roles;
 }
 
 

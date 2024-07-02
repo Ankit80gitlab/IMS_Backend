@@ -11,7 +11,7 @@ import java.util.HashMap;
 public interface ZoneService {
     HashMap<String, Object> addZone(ZoneDto zoneDto, String token);
 
-    HashMap<String, Object> getAllZones(Integer pageNo, Integer pageSize);
+    HashMap<String, Object> getAllZones(Integer pageNo, Integer pageSize,String token,String searchByName);
 
     HashMap<String, Object> updateZone(ZoneDto zoneDto, String token);
 

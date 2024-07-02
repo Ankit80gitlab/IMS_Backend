@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.cms</groupId>
+    <groupId>com.cms.imsweb</groupId>
     <artifactId>incident-management</artifactId>
     <name>incident-management</name>
     <packaging>jar</packaging>
@@ -12,8 +12,8 @@
         <java.version>8</java.version>
     </properties>
     <parent>
-        <groupId>com.cms</groupId>
-        <artifactId>main</artifactId>
+        <groupId>com.cms.ims</groupId>
+        <artifactId>ims</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <dependencies>
@@ -98,6 +98,25 @@
             <groupId>com.github.javafaker</groupId>
             <artifactId>javafaker</artifactId>
             <version>1.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>sockjs-client</artifactId>
+            <version>1.5.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>stomp-websocket</artifactId>
+            <version>2.3.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.osgeo</groupId>
+            <artifactId>proj4j</artifactId>
+            <version>0.1.0</version>
         </dependency>
     </dependencies>
     <build>

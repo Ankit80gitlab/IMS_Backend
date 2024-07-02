@@ -1,25 +1,29 @@
 package com.cms.core.entity;
 
-import lombok.Getter; import lombok.Setter;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.persistence.*;
 import java.io.Serializable;
-import java.util.Set;
 
 /**
  * Created by Shashidhar on 4/18/2024.
  */
 
 @Entity
-@Getter @Setter
+@Getter
+@Setter
 @Table(name = "device")
 public class Device implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(name = "name", nullable = false, unique = true, length = 30)
+    @Column(name = "name", nullable = false, length = 30)
     private String name;
+
+    @Column(name = "uid", nullable = false, length = 30)
+    private String uid;
 
     @Column(name = "lat", nullable = false)
     private double lat;
@@ -34,10 +38,10 @@ public class Device implements Serializable {
     @JoinColumn(name = "created_by")
     private User user;
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL,orphanRemoval = true)
-    private Set<CustomerProductMappingDevice> customerProductMappingDevices;
+    @OneToOne(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+    private CustomerProductMappingDevice customerProductMappingDevice;
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL,orphanRemoval = true)
-    private Set<AreaDeviceMapping> areaDeviceMappings;
+    @OneToOne(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+    private AreaDeviceMapping areaDeviceMapping;
 
 }

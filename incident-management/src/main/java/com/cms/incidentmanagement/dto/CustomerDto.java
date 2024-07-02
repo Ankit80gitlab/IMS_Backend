@@ -1,5 +1,6 @@
 package com.cms.incidentmanagement.dto;
 
+import com.cms.core.entity.Product;
 import lombok.*;
 
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.List;
 @Getter
 @Setter
 public class CustomerDto {
+
     private Integer id;
 
     private String name;
@@ -19,6 +21,5 @@ public class CustomerDto {
     private String city;
 
     private List<Integer> productIds;
-
 }
 

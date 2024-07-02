@@ -16,8 +16,8 @@
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>2.6.5</version>
     </parent>
-    <groupId>com.cms</groupId>
-    <artifactId>main</artifactId>
+    <groupId>com.cms.ims</groupId>
+    <artifactId>ims</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <description>incident management system</description>
 </project>

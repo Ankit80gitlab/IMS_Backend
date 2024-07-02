@@ -13,8 +13,9 @@ CREATE TABLE "db_schema"."role"
     id         serial      NOT NULL,
     name       varchar(20) NOT NULL,
     created_by integer     NOT NULL,
-    CONSTRAINT unique_role UNIQUE (name),
-    CONSTRAINT pk_role PRIMARY KEY (id)
+    customer_id  integer   ,
+    CONSTRAINT pk_role PRIMARY KEY (id),
+    CONSTRAINT unique_role_customer_role UNIQUE (customer_id, name)
 );
 
 CREATE INDEX idx_role ON "db_schema"."role" (id);
@@ -40,7 +41,8 @@ CREATE TABLE "db_schema".area
     created_by   integer     NOT NULL,
     created_time timestamp   NOT NULL,
     polygon      text        NOT NULL,
-    CONSTRAINT pk_area PRIMARY KEY (id)
+    CONSTRAINT pk_area PRIMARY KEY (id),
+     CONSTRAINT unique_area_zone_area UNIQUE (zone_id, name)
 );
 
 CREATE INDEX idx_area ON "db_schema".area (id ASC);
@@ -89,19 +91,6 @@ CREATE INDEX idx_comments ON "db_schema".comments (id ASC);
 
 CREATE INDEX idx_comments_0 ON "db_schema".comments (ticket_id ASC);
 
-CREATE TABLE "db_schema".comments_file
-(
-    id          serial       NOT NULL,
-    file_path   varchar(200) NOT NULL,
-    file_type   varchar(10),
-    comments_id integer      NOT NULL,
-    CONSTRAINT pk_comments_file PRIMARY KEY (id)
-);
-
-CREATE INDEX idx_comments_file ON "db_schema".comments_file (id ASC);
-
-CREATE INDEX idx_comments_file_0 ON "db_schema".comments_file (comments_id ASC);
-
 CREATE TABLE "db_schema".customer
 (
     id         serial      NOT NULL,
@@ -147,12 +136,12 @@ CREATE TABLE "db_schema".device
 (
     id          serial                     NOT NULL,
     name        varchar(30)                NOT NULL,
+    uid         varchar(30)                NOT NULL,
     lat         double precision DEFAULT 0 NOT NULL,
     lon         double precision DEFAULT 0 NOT NULL,
     description varchar(250),
     created_by  integer,
-    CONSTRAINT pk_device PRIMARY KEY (id),
-    CONSTRAINT unique_device UNIQUE (name)
+    CONSTRAINT pk_device PRIMARY KEY (id)
 );
 
 CREATE INDEX idx_device ON "db_schema".device (id ASC);
@@ -174,7 +163,7 @@ CREATE TABLE "db_schema".ticket
 (
     id                                 serial      NOT NULL,
     subject                            varchar(100),
-    type                               varchar(10) NOT NULL,
+    type                               integer        NOT NULL,
     issue_related                      varchar(10) NOT NULL,
     priority                           varchar(10) NOT NULL,
     status                             varchar(10) NOT NULL,
@@ -182,8 +171,12 @@ CREATE TABLE "db_schema".ticket
     created_time                       timestamp   NOT NULL,
     created_by                         integer     NOT NULL,
     assigned_to                        integer     NOT NULL,
+    updated_by                         integer ,
+    is_duplicate                        boolean DEFAULT false NOT NULL,
+    parent_ticket_id                   integer,
     customer_product_mapping_id        integer     NOT NULL,
     customer_product_mapping_device_id integer,
+    original_ticket_id                integer,
     CONSTRAINT pk_ticket PRIMARY KEY (id)
 );
 
@@ -195,13 +188,61 @@ CREATE INDEX idx_ticket_1 ON "db_schema".ticket (issue_related ASC);
 
 CREATE INDEX idx_ticket_2 ON "db_schema".ticket (status ASC);
 
+CREATE INDEX idx_ticket_3 ON "db_schema".ticket (type ASC);
+
+
+CREATE TABLE "db_schema".incident_type
+(
+    id                                 serial      NOT NULL,
+    type                               varchar(15) NOT NULL,
+    description                        text        NOT NUlL,
+    created_by                         integer     NOT NULL,
+    product_id                         integer     NOT NULL,
+    CONSTRAINT unique_type_product_id UNIQUE (product_id, type),
+    CONSTRAINT pk_incident_type PRIMARY KEY (id)
+);
+CREATE INDEX idx_incident_type ON "db_schema".incident_type (id ASC);
+
+
+CREATE TABLE "db_schema".incident_escalation
+(
+    id                                 serial      NOT NULL,
+    escalation_hour                    integer NOT NULL,
+    created_by                         integer     NOT NULL,
+    incident_type_id                     integer     NOT NULL,
+    customer_product_mapping_id           integer NOT NULL,
+    CONSTRAINT unique_incident_type_customer_product_mapping UNIQUE (incident_type_id, customer_product_mapping_id),
+    CONSTRAINT pk_incident_escalation PRIMARY KEY (id)
+);
+CREATE INDEX idx_incident_escalation ON "db_schema".incident_escalation (id ASC);
+
+CREATE TABLE "db_schema".incident_escalation_default_user
+(
+    id                                 serial      NOT NULL,
+    incident_escalation_id             integer     NOT NULL,
+    user_id                            integer     NOT NULL,
+    CONSTRAINT pk_incident_escalation_dafault_user PRIMARY KEY (id)
+);
+CREATE INDEX idx_incident_escalation_default_user ON "db_schema".incident_escalation_default_user (id ASC);
+
+CREATE TABLE "db_schema".incident_escalation_user
+(
+    id                                 serial      NOT NULL,
+    incident_escalation_id             integer     NOT NULL,
+    user_id                            integer     NOT NULL,
+    CONSTRAINT pk_incident_escalation_user PRIMARY KEY (id)
+);
+CREATE INDEX idx_incident_escalation_user ON "db_schema".incident_escalation_user (id ASC);
+
 CREATE TABLE "db_schema".ticket_files
 (
     id        serial       NOT NULL,
-    subject   varchar(100) NOT NULL,
+    optional_description   text  ,
     file_path varchar(200) NOT NULL,
+    file_name varchar(200) NOT NULL,
     file_type varchar(10),
     ticket_id integer      NOT NULL,
+    comment_id integer     ,
     CONSTRAINT pk_ticket_files PRIMARY KEY (id)
 );
 
@@ -209,14 +250,16 @@ CREATE INDEX idx_ticket_files ON "db_schema".ticket_files (id ASC);
 
 CREATE INDEX idx_ticket_files_0 ON "db_schema".ticket_files (ticket_id ASC);
 
+CREATE INDEX idx_ticket_files_1 ON "db_schema".ticket_files (comment_id ASC);
+
 CREATE TABLE "db_schema".ticket_updation_history
 (
     id           serial      NOT NULL,
     updated_time timestamp   NOT NULL,
     updated_by   integer     NOT NULL,
-    change_in    varchar(10) NOT NULL,
-    change_from  varchar(15) NOT NULL,
-    change_to    varchar(15) NOT NULL,
+    change_in    varchar(20) NOT NULL,
+    change_from  varchar(100) NOT NULL,
+    change_to    varchar(100) NOT NULL,
     ticket_id    integer     NOT NULL,
     CONSTRAINT pk_ticket_updation_history PRIMARY KEY (id)
 );
@@ -254,17 +297,31 @@ CREATE TABLE "db_schema".users
     name         varchar(30)           NOT NULL,
     email        varchar(100)          NOT NULL,
     password     varchar(100)          NOT NULL,
+    lat         double precision DEFAULT 0 NOT NULL,
+    lon         double precision DEFAULT 0 NOT NULL,
     ldap_user    boolean DEFAULT false NOT NULL,
     created_time timestamp,
     login_time   timestamp,
     customer_id  integer,
     created_by   integer,
+    type         integer,
     CONSTRAINT pk_users PRIMARY KEY (id),
     CONSTRAINT unique_username UNIQUE (username),
     CONSTRAINT unique_user_email UNIQUE (email)
 );
 
 CREATE INDEX idx_users ON "db_schema".users (id ASC);
+
+CREATE TABLE "db_schema".user_type
+(
+    id           serial                NOT NULL,
+    name         varchar(30)           NOT NULL,
+    CONSTRAINT unique_name UNIQUE (name),
+    CONSTRAINT pk_user_type PRIMARY KEY (id)
+
+);
+CREATE INDEX idx_user_type ON "db_schema".user_type(id ASC);
+
 
 CREATE TABLE "db_schema"."zone"
 (
@@ -301,9 +358,6 @@ ALTER TABLE "db_schema".area_user_mapping
 ALTER TABLE "db_schema".comments
     ADD CONSTRAINT fk_comments_ticket FOREIGN KEY (ticket_id) REFERENCES "db_schema".ticket (id);
 
-ALTER TABLE "db_schema".comments_file
-    ADD CONSTRAINT fk_comments_file_comments FOREIGN KEY (comments_id) REFERENCES "db_schema".comments (id);
-
 ALTER TABLE "db_schema".customer
     ADD CONSTRAINT fk_customer_users FOREIGN KEY (created_by) REFERENCES "db_schema".users (id);
 
@@ -337,8 +391,17 @@ ALTER TABLE "db_schema".ticket
 ALTER TABLE "db_schema".ticket
     ADD CONSTRAINT fk_ticket_customer_product_mapping FOREIGN KEY (customer_product_mapping_id) REFERENCES "db_schema".customer_product_mapping (id);
 
+ALTER TABLE "db_schema".ticket
+    ADD CONSTRAINT fk_ticket_users_updated__by FOREIGN KEY (updated_by) REFERENCES "db_schema".users (id);
+
+ALTER TABLE "db_schema".ticket
+    ADD CONSTRAINT fk_ticket_incident_type_type FOREIGN KEY (type) REFERENCES "db_schema".incident_type (id);
+
 ALTER TABLE "db_schema".ticket_files
     ADD CONSTRAINT fk_ticket_files_ticket FOREIGN KEY (ticket_id) REFERENCES "db_schema".ticket (id);
+
+ALTER TABLE "db_schema".ticket_files
+    ADD CONSTRAINT fk_ticket_files_comments FOREIGN KEY (comment_id) REFERENCES "db_schema".comments (id);
 
 ALTER TABLE "db_schema".ticket_updation_history
     ADD CONSTRAINT fk_ticket_updation_history_ticket FOREIGN KEY (ticket_id) REFERENCES "db_schema".ticket (id);
@@ -361,8 +424,39 @@ ALTER TABLE "db_schema".users
 ALTER TABLE "db_schema".users
     ADD CONSTRAINT fk_users_users FOREIGN KEY (created_by) REFERENCES "db_schema".users (id);
 
+ALTER TABLE "db_schema".users
+    ADD CONSTRAINT fk_users_user_type FOREIGN KEY (type) REFERENCES "db_schema".user_type (id);
+
 ALTER TABLE "db_schema"."zone"
     ADD CONSTRAINT fk_zone_users FOREIGN KEY (created_by) REFERENCES "db_schema".users (id);
 
 ALTER TABLE "db_schema"."zone"
     ADD CONSTRAINT fk_zone_customer FOREIGN KEY (customer_id) REFERENCES "db_schema".customer (id);
+
+ALTER TABLE "db_schema"."incident_type"
+    ADD CONSTRAINT fk_incident_type_user FOREIGN KEY (created_by) REFERENCES "db_schema".users (id);
+
+ALTER TABLE "db_schema"."incident_type"
+    ADD CONSTRAINT fk_incident_type_product
+     FOREIGN KEY (product_id) REFERENCES "db_schema".product(id);
+
+ ALTER TABLE "db_schema"."incident_escalation"
+    ADD CONSTRAINT fk_incident_escaltion_incident_type FOREIGN KEY (incident_type_id) REFERENCES "db_schema".incident_type (id);
+
+ALTER TABLE "db_schema"."incident_escalation"
+    ADD CONSTRAINT fk_incident_escaltion_created_by FOREIGN KEY (created_by) REFERENCES "db_schema".users(id);
+
+ALTER TABLE "db_schema"."incident_escalation"
+    ADD CONSTRAINT fk_incident_escaltion_customer_product_mapping FOREIGN KEY (customer_product_mapping_id) REFERENCES "db_schema".customer_product_mapping (id);
+
+ALTER TABLE "db_schema"."incident_escalation_user"
+    ADD CONSTRAINT fk_incident_escaltion_user_incident_escalation FOREIGN KEY (incident_escalation_id) REFERENCES "db_schema".incident_escalation (id);
+
+ALTER TABLE "db_schema"."incident_escalation_user"
+    ADD CONSTRAINT fk_incident_escaltion_user_user FOREIGN KEY (user_id) REFERENCES "db_schema".users (id);
+
+ALTER TABLE "db_schema"."incident_escalation_default_user"
+    ADD CONSTRAINT fk_incident_escaltion_default_user_incident_escalation FOREIGN KEY (incident_escalation_id) REFERENCES "db_schema".incident_escalation (id);
+
+
+

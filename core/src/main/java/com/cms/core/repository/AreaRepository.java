@@ -14,5 +14,7 @@ import java.util.Optional;
 public interface AreaRepository extends JpaRepository<Area,Integer>, JpaSpecificationExecutor<Area> {
     List<Area> findByZoneId(Integer id);
 
-    long countByNameIgnoreCase(String name);
+    long countByNameIgnoreCaseAndZoneId(String name, Integer zoneId);
+
+    long countByNameIgnoreCaseAndZoneIdIsNull(String name);
 }

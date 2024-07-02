@@ -40,6 +40,6 @@ public class Area implements Serializable {
     @OneToMany(mappedBy = "area", fetch = FetchType.LAZY,cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<AreaUserMapping> areaUserMappings;
 
-    @OneToMany(mappedBy = "area", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "area", fetch = FetchType.LAZY,cascade = CascadeType.ALL,orphanRemoval = true)
     private Set<AreaDeviceMapping> areaDeviceMappings;
 }

@@ -38,6 +38,8 @@ public interface Constant {
 
     String CREATE_SUCCESS = "Successfully created";
 
+    String ADD_SUCCESS = "Successfully added";
+
     String ROLE_NAME_UPDATE_SUCCESS = "Role name updated successfully";
 
     String DUPLICATE_ROLE_NAME = "Duplicate role name";
@@ -75,18 +77,24 @@ public interface Constant {
     String REASON = "reason";
 
     String DATA = "data";
-
     String[] SKIP_URLS = {"/instances", "/actuator/**", "/img/**", "/css/**", "/js/**", "/plugins/**", "/**/*.js",
             "/**/*.css", "/**/*.ico", "/**/*.jpg", "/**/*.jpeg", "/**/*.png", "/apiTest/**", "/v3/api-docs/**",
             "/swagger-ui/**", "/login", "/logout", "/testing/**"};
 
     String USER_MANAGEMENT = "User Management";
+
     String ROLE_MANAGEMENT = "Role Management";
+
     String FEATURE_MANAGEMENT = "Feature Management";
+
     String TICKET_MANAGEMENT = "Ticket Management";
+
     String USER_MANAGEMENT_URL = "/userManagement/**";
+
     String ROLE_MANAGEMENT_URL = "/roleManagement/**";
+
     String TICKET_MANAGEMENT_URL = "/ticketManagement/**";
+
     String FEATURE_MANAGEMENT_URL = "/featureManagement/**";
 
     String[] USER_MANAGEMENT_URL1 = {
@@ -104,6 +112,7 @@ public interface Constant {
     };
 
     String PRODUCT_ALREADY_EXISTS = "Product already exist";
+
     String CUSTOMER_ALREADY_EXISTS = "Customer already exist";
 
     String PRODUCT_NOT_FOUND = "Product not found";
@@ -111,14 +120,28 @@ public interface Constant {
     String CUSTOMER_NOT_FOUND = "Customer not found";
 
     String ROLE_NOT_FOUND = "Role not found";
-    String FEATURE_NOT_FOUND = "Feature not found";
 
     String DEVICE_ALREADY_EXISTS = "Device already exist";
+
     String DEVICE_NOT_FOUND = "Device not found";
+
     String ZONE_ALREADY_EXISTS = "Zone already exist";
+
     String ZONE_NOT_FOUND = "Zone not found";
+
     String CUSTOMER_PRODUCT_MAPPING_NOT_FOUND = "CustomerProductMapping not found";
+
     String AREA_NOT_FOUND = "Area not found";
+
     String AREA_ALREADY_EXISTS = "Area already exist";
+
     String EMAIL_ALREADY_EXIST = "Email already exist";
+
+    String TICKET_NOT_FOUND = "Ticket not found";
+
+    String UNAUTHORIZED = "Unautherized";
+
+    String TYPE_NOT_FOUND = "Type not found";
+
+    String INCIDENT_TYPE_NOT_FOUND ="IncidentType not found";
 }

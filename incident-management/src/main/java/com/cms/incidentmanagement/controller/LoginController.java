@@ -64,4 +64,15 @@ public class LoginController {
             logger.error("error: " + e.getMessage());
         }
     }
+
+    @RequestMapping(method = RequestMethod.GET, value = "/getUserInfo")
+    public HashMap<String,Object> getUserInfo(@RequestHeader(name = HttpHeaders.AUTHORIZATION) String token) {
+        HashMap<String,Object> map = new HashMap<>();
+        try {
+            map = loginService.getUserInfo(token);
+        } catch (Exception e) {
+            logger.error("error: " + e.getMessage());
+        }
+        return map;
+    }
 }

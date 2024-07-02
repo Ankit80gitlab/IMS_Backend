@@ -11,11 +11,20 @@ import javax.persistence.Column;
 @Getter
 @Setter
 public class DeviceDto {
+
     private Integer id;
+
+    private String uid;
+
     private String name;
+
     private double lat;
+
     private double lon;
+
     private String description;
-    private Integer customerProductMappingId;
+
+    private Integer productId;
+
     private Integer areaId;
 }
